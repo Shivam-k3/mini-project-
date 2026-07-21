@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { simulatorAPI } from '../services/api';
 import { ComparisonBarChart } from '../components/Charts';
 import toast from 'react-hot-toast';
-import { FiPlay, FiSettings, FiSliders, FiCpu, FiTrendingDown, FiShield } from 'react-icons/fi';
+import { FiPlay, FiSettings, FiSliders, FiCpu, FiTrendingUp, FiTrendingDown, FiShield } from 'react-icons/fi';
 
 export default function Simulator() {
   const [scenarios, setScenarios] = useState([]);
