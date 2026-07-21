@@ -5,12 +5,13 @@ import { useTheme } from '../context/ThemeContext';
 import {
   FiHome, FiPlusCircle, FiCpu, FiMessageCircle, FiAward,
   FiFileText, FiSettings, FiLogOut, FiSun, FiMoon, FiShield,
-  FiBell, FiSearch, FiChevronDown, FiUser, FiChevronLeft, FiMenu
+  FiBell, FiSearch, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity
 } from 'react-icons/fi';
 
 const navItems = [
   { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { to: '/calculator', icon: FiPlusCircle, label: 'Calculator' },
+  { to: '/explainable-ai', icon: FiActivity, label: 'Explainable AI' },
   { to: '/simulator', icon: FiCpu, label: 'Digital Twin' },
   { to: '/assistant', icon: FiMessageCircle, label: 'AI Assistant' },
   { to: '/gamification', icon: FiAward, label: 'Gamification' },

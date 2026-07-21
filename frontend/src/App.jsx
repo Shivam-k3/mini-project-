@@ -15,6 +15,7 @@ import Gamification from './pages/Gamification';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
+import ExplainableAI from './pages/ExplainableAI';
 
 function AppLayout() {
   return (
@@ -27,6 +28,7 @@ function AppLayout() {
         <Route path="/gamification" element={<Gamification />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/explainable-ai" element={<ExplainableAI />} />
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
         } />
