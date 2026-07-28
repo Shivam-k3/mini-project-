@@ -9,10 +9,10 @@ const router = express.Router();
 
 const PRESET_SCENARIOS = [
   {
-    id: 'metro-instead-bike',
-    name: 'Use Metro Instead of Bike',
-    description: 'Switch 10km daily commute from bike to metro',
-    changes: { transportMode: 'metro', transportKm: 10, replaceMode: 'bike' },
+    id: 'car-to-metro',
+    name: 'Switch Car to Metro',
+    description: 'Replace 10km daily car commute with metro',
+    changes: { transportMode: 'metro', transportKm: 10, replaceMode: 'car' },
   },
   {
     id: 'reduce-electricity',
@@ -67,9 +67,14 @@ router.post('/simulate', protect, async (req, res) => {
 
   const result = simulateScenario(baseline, changes);
 
+  // Optionally enhance with ML service (yearly projections, confidence)
   const mlResult = await getDigitalTwinSimulation(baseline, changes);
   if (mlResult) {
     result.mlPrediction = mlResult;
+    // Override local fields with ML's more detailed values
+    result.yearlySavings = mlResult.yearlySavings;
+    result.treesEquivalent = mlResult.treesEquivalent;
+    result.impactScore = mlResult.impactScore;
   }
 
   const simulation = await Simulation.create({

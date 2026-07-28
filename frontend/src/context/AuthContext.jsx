@@ -22,8 +22,8 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password) => {
-    const { data } = await authAPI.login({ email, password });
+  const login = async (emailOrUserId, password) => {
+    const { data } = await authAPI.login({ emailOrUserId, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data));
     setUser(data);
@@ -31,11 +31,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (name, email, password) => {
-    const { data } = await authAPI.register({ name, email, password });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data));
-    setUser(data);
-    return data;
+    throw new Error("Self registration is disabled.");
   };
 
   const logout = () => {

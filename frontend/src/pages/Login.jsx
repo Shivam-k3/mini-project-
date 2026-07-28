@@ -1,140 +1,159 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
-import { FcGoogle } from 'react-icons/fc';
+import {
+  FiUser, FiLock, FiEye, FiEyeOff, FiFeather, FiCheck,
+  FiArrowRight, FiMail
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
+
+const sandboxAccounts = [
+  { label: 'Super admin', id: 'super@ecoguardian.ai', pass: 'admin123' },
+  { label: 'Campus admin', id: 'admin@ecoguardian.ai', pass: 'admin123' },
+  { label: 'Faculty', id: 'sarah@mit.edu', pass: 'Temp@123' },
+  { label: 'Student', id: 'demo@ecoguardian.ai', pass: 'demo123' },
+];
 
 export default function Login() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ emailOrUserId: '', password: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
+    if (user) navigate(user.firstLogin ? '/change-password' : '/dashboard');
   }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(form.email, form.password);
-      toast.success('Welcome back!');
-      navigate('/dashboard');
+      const data = await login(form.emailOrUserId, form.password);
+      toast.success(`Welcome back, ${data.name}!`);
+      navigate(data.firstLogin ? '/change-password' : '/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
+      toast.error(err.response?.data?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    toast.loading('Redirecting to Google Sign-In...', { duration: 1500 });
-    setTimeout(() => {
-      // Simulate successful OAuth login as demo user
-      login('demo@ecoguardian.ai', 'demo123')
-        .then(() => {
-          toast.success('Google Login Successful!');
-          navigate('/dashboard');
-        })
-        .catch(() => toast.error('Google Sign-In failed'));
-    }, 1500);
-  };
+  const quickFill = (id, pass) => setForm({ emailOrUserId: id, password: pass });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 bg-mesh p-4">
-      <div className="glass-card w-full max-w-md animate-slide-up border border-white/20 dark:border-white/5 rounded-3xl p-8">
-        
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-eco-400 to-ocean-500 flex items-center justify-center text-white text-xl mx-auto mb-4 shadow-md">
-            🌿
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Welcome back</h1>
-          <p className="text-xs text-gray-400 mt-1 font-medium">Continue your climate action journey</p>
-        </div>
+    <main className="auth-shell">
+      <section className="auth-brand-panel" aria-label="EcoGuardian AI introduction">
+        <div className="auth-brand-overlay" />
+        <div className="auth-brand-content">
+          <div className="auth-mark"><FiFeather size={32} /></div>
+          <p className="auth-brand-name">EcoGuardian AI</p>
+          <h1>Pioneering the future of sustainability through intelligent ecological stewardship.</h1>
 
-        {/* Google Sign In */}
-        <button 
-          type="button" 
-          onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white/40 dark:bg-gray-900/40 rounded-xl text-sm font-semibold transition-all duration-300 active:scale-[0.98] select-none text-gray-700 dark:text-gray-200"
-        >
-          <FcGoogle size={18} />
-          Sign in with Google
-        </button>
-
-        {/* Divider */}
-        <div className="flex items-center my-6">
-          <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
-          <span className="px-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">or email</span>
-          <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Email address</label>
-            <div className="relative">
-              <FiMail className="absolute left-4 top-3.5 text-gray-400" />
-              <input
-                type="email"
-                className="input-field pl-11"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
+          <div className="auth-proof-list">
+            <div className="auth-proof">
+              <span><FiCheck size={15} /></span>
+              <p><strong>Precision analytics</strong>Monitor carbon footprints with clarity and confidence.</p>
+            </div>
+            <div className="auth-proof">
+              <span><FiCheck size={15} /></span>
+              <p><strong>Ethical forecasting</strong>Understand environmental impact through explainable AI.</p>
             </div>
           </div>
+        </div>
+        <p className="auth-version">Campus sustainability portal <b>•</b> SDG 13</p>
+      </section>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider font-Outfit">Password</label>
-            <div className="relative">
-              <FiLock className="absolute left-4 top-3.5 text-gray-400" />
-              <input
-                type={showPass ? 'text' : 'password'}
-                className="input-field pl-11 pr-11"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600 transition-colors">
-                {showPass ? <FiEyeOff size={16} /> : <FiEye size={16} />}
-              </button>
-            </div>
-          </div>
+      <section className="auth-form-panel">
+        <div className="auth-mobile-brand">
+          <span><FiFeather size={18} /></span> EcoGuardian AI
+        </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-3 mt-2">
-            {loading ? 'Signing in...' : 'Sign In'}
+        <div className="auth-form-wrap">
+          <header className="auth-header">
+            <p className="auth-eyebrow">Secure workspace</p>
+            <h2>Welcome back</h2>
+            <p>Enter your institutional credentials to access your dashboard.</p>
+          </header>
+
+          <button type="button" className="auth-google-button" aria-label="Google sign-in is not configured">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+            </svg>
+            Continue with Google
           </button>
-        </form>
 
-        {/* Footer info */}
-        <p className="text-center mt-6 text-xs text-gray-400 font-medium">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-eco-600 hover:text-eco-500 font-semibold transition-colors">Create one</Link>
-        </p>
+          <div className="auth-divider"><span /> <b>or</b> <span /></div>
 
-        {/* Demo Accounts Panel */}
-        <div className="mt-8 p-4 rounded-2xl bg-eco-500/5 border border-eco-200/20 dark:border-eco-800/10 text-xs text-eco-700 dark:text-eco-300 space-y-1">
-          <p className="font-bold text-eco-800 dark:text-eco-400 uppercase tracking-wide mb-1">Developer Sandbox Credentials:</p>
-          <div className="flex justify-between">
-            <span>👤 User: demo@ecoguardian.ai</span>
-            <span className="font-mono">demo123</span>
-          </div>
-          <div className="flex justify-between">
-            <span>🛡️ Admin: admin@ecoguardian.ai</span>
-            <span className="font-mono">admin123</span>
+          <form onSubmit={handleSubmit} className="auth-form">
+            <label>
+              <span>User ID or email</span>
+              <div className="auth-input-wrap">
+                <FiMail aria-hidden="true" />
+                <input
+                  id="emailOrUserId"
+                  type="text"
+                  placeholder="CSE25001 or user@campus.edu"
+                  value={form.emailOrUserId}
+                  onChange={(e) => setForm({ ...form, emailOrUserId: e.target.value })}
+                  autoComplete="username"
+                  required
+                />
+              </div>
+            </label>
+
+            <label>
+              <span className="auth-password-label">Password <small>Protected account</small></span>
+              <div className="auth-input-wrap">
+                <FiLock aria-hidden="true" />
+                <input
+                  id="password"
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
+                >
+                  {showPass ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+            </label>
+
+            <label className="auth-remember">
+              <input type="checkbox" />
+              <span>Keep me signed in for 30 days</span>
+            </label>
+
+            <button type="submit" disabled={loading} className="auth-submit">
+              {loading ? <span className="auth-spinner" /> : <>Sign in to EcoGuardian <FiArrowRight size={19} /></>}
+            </button>
+          </form>
+
+          <div className="auth-sandbox" aria-label="Demo accounts">
+            <p>Demo access</p>
+            <div>
+              {sandboxAccounts.map((account) => (
+                <button key={account.id} type="button" onClick={() => quickFill(account.id, account.pass)}>
+                  <b>{account.label}</b><span>{account.id}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-      </div>
-    </div>
+        <footer className="auth-legal">
+          <Link to="/legal/privacy">Privacy policy</Link><span>•</span><Link to="/legal/terms">Terms of service</Link><span>•</span><Link to="/legal/security">Security architecture</Link><span>•</span><Link to="/legal/cookies">Session notice</Link>
+        </footer>
+      </section>
+    </main>
   );
 }

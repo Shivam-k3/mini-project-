@@ -7,6 +7,61 @@ const { getPredictions, getShapExplanation } = require('../utils/mlService');
 
 const router = express.Router();
 
+async function autoAwardBadges(user, entry) {
+  const badges = user.gamification.badges || [];
+  const newBadges = [];
+
+  // Count total entries for this user
+  const entryCount = await CarbonEntry.countDocuments({ user: user._id });
+
+  // first_entry: first carbon log
+  if (entryCount === 1 && !badges.includes('first_entry')) {
+    newBadges.push('first_entry');
+  }
+
+  // week_streak: 7-day streak
+  if (user.gamification.streak >= 7 && !badges.includes('week_streak')) {
+    newBadges.push('week_streak');
+  }
+
+  // month_streak: 30-day streak
+  if (user.gamification.streak >= 30 && !badges.includes('month_streak')) {
+    newBadges.push('month_streak');
+  }
+
+  // eco_hero: eco score 80+
+  if (user.gamification.ecoScore >= 80 && !badges.includes('eco_hero')) {
+    newBadges.push('eco_hero');
+  }
+
+  // carbon_cut: entry 20%+ below user's historical average
+  const allEntries = await CarbonEntry.find({ user: user._id }).select('totalEmissions');
+  if (allEntries.length >= 3) {
+    const avg = allEntries.reduce((s, e) => s + e.totalEmissions, 0) / allEntries.length;
+    if (entry.totalEmissions <= avg * 0.8 && !badges.includes('carbon_cut')) {
+      newBadges.push('carbon_cut');
+    }
+  }
+
+  // green_commuter: zero transport emissions in this entry
+  const transportTotal = entry.breakdown?.transport || 0;
+  if (transportTotal === 0 && !badges.includes('green_commuter')) {
+    newBadges.push('green_commuter');
+  }
+
+  // eco_warrior: 500+ green points
+  if (user.gamification.greenPoints >= 500 && !badges.includes('eco_warrior')) {
+    newBadges.push('eco_warrior');
+  }
+
+  if (newBadges.length > 0) {
+    user.gamification.badges = [...badges, ...newBadges];
+    await user.save();
+  }
+
+  return newBadges;
+}
+
 router.post('/', protect, async (req, res) => {
   const { total, breakdown } = calculateEmissions(req.body);
   const entry = await CarbonEntry.create({
@@ -34,7 +89,10 @@ router.post('/', protect, async (req, res) => {
   user.gamification.greenPoints += Math.max(0, Math.round(20 - total));
   await user.save();
 
-  res.status(201).json(entry);
+  // Auto-award badges
+  const earnedBadges = await autoAwardBadges(user, entry);
+
+  res.status(201).json({ ...entry.toObject(), earnedBadges });
 });
 
 router.get('/', protect, async (req, res) => {
@@ -90,9 +148,19 @@ router.get('/dashboard', protect, async (req, res) => {
     ...e.breakdown,
   }));
 
-  const predictions = await getPredictions(userId.toString(), allEntries.slice(0, 60));
+  const predictions = await getPredictions(
+    userId.toString(),
+    allEntries.slice(0, 60),
+    'user',
+    userId.toString()
+  );
   const latestBreakdown = allEntries[0]?.breakdown || categoryBreakdown;
-  const shapExplanation = await getShapExplanation(latestBreakdown, allEntries[0]?.totalEmissions || 0);
+  const shapExplanation = await getShapExplanation(
+    latestBreakdown,
+    allEntries[0]?.totalEmissions || 0,
+    'user',
+    userId.toString()
+  );
 
   res.json({
     daily: Math.round(dailyTotal * 100) / 100,

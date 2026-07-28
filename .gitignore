@@ -7,4 +7,9 @@ build/
 venv/
 __pycache__/
 *.pyc
-.models/
+models/*.pkl
+models/*.json
+ml-service/models/
+*.pkl
+*.out.txt
+*.err.txt

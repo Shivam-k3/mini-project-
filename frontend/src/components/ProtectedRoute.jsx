@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
+export default function ProtectedRoute({ children, allowedRoles = null, allowFirstLogin = false }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -13,7 +13,21 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+
+  // Force password change on first login
+  if (user.firstLogin && !allowFirstLogin) {
+    return <Navigate to="/change-password" replace />;
+  }
+
+  // Suspended account check
+  if (user.status === 'suspended') {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Role authorization check
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return children;
 }

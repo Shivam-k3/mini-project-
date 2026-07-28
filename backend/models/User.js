@@ -2,10 +2,17 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true, uppercase: true, trim: true },
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true },
-  password: { type: String, required: true, minlength: 6 },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['super_admin', 'college_admin', 'faculty', 'student'], default: 'student' },
+  collegeId: { type: mongoose.Schema.Types.ObjectId, ref: 'College', default: null },
+  departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
+  semester: { type: String, default: '' },
+  section: { type: String, default: '' },
+  firstLogin: { type: Boolean, default: true },
+  status: { type: String, enum: ['active', 'suspended'], default: 'active' },
   profile: {
     avatar: { type: String, default: '' },
     location: { type: String, default: '' },

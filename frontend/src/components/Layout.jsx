@@ -5,19 +5,54 @@ import { useTheme } from '../context/ThemeContext';
 import {
   FiHome, FiPlusCircle, FiCpu, FiMessageCircle, FiAward,
   FiFileText, FiSettings, FiLogOut, FiSun, FiMoon, FiShield,
-  FiBell, FiSearch, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity
+  FiBell, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity,
+  FiFeather
 } from 'react-icons/fi';
 
-const navItems = [
-  { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
-  { to: '/calculator', icon: FiPlusCircle, label: 'Calculator' },
-  { to: '/explainable-ai', icon: FiActivity, label: 'Explainable AI' },
-  { to: '/simulator', icon: FiCpu, label: 'Digital Twin' },
-  { to: '/assistant', icon: FiMessageCircle, label: 'AI Assistant' },
-  { to: '/gamification', icon: FiAward, label: 'Gamification' },
-  { to: '/reports', icon: FiFileText, label: 'Reports' },
-  { to: '/profile', icon: FiSettings, label: 'Profile' },
-];
+const getNavItems = (role) => {
+  switch (role) {
+    case 'super_admin':
+      return [
+        { to: '/dashboard', icon: FiHome,        label: 'Platform Dashboard' },
+        { to: '/admin',     icon: FiShield,      label: 'College Manager' },
+        { to: '/profile',   icon: FiSettings,    label: 'Profile' },
+      ];
+    case 'college_admin':
+      return [
+        { to: '/dashboard', icon: FiHome,        label: 'Campus Dashboard' },
+        { to: '/admin',     icon: FiShield,      label: 'Admin Hub' },
+        { to: '/reports',   icon: FiFileText,    label: 'Campus Reports' },
+        { to: '/profile',   icon: FiSettings,    label: 'Profile' },
+      ];
+    case 'faculty':
+      return [
+        { to: '/dashboard',     icon: FiHome,         label: 'Faculty Dashboard' },
+        { to: '/simulator',     icon: FiCpu,          label: 'Digital Twin' },
+        { to: '/assistant',     icon: FiMessageCircle,label: 'AI Assistant' },
+        { to: '/reports',       icon: FiFileText,     label: 'Reports' },
+        { to: '/profile',       icon: FiSettings,     label: 'Profile' },
+      ];
+    case 'student':
+    default:
+      return [
+        { to: '/dashboard',      icon: FiHome,          label: 'My Dashboard' },
+        { to: '/calculator',     icon: FiPlusCircle,    label: 'Carbon Calculator' },
+        { to: '/explainable-ai', icon: FiActivity,      label: 'Explainable AI' },
+        { to: '/simulator',      icon: FiCpu,           label: 'Digital Twin' },
+        { to: '/assistant',      icon: FiMessageCircle, label: 'AI Assistant' },
+        { to: '/gamification',   icon: FiAward,         label: 'Gamification' },
+        { to: '/reports',        icon: FiFileText,      label: 'Reports' },
+        { to: '/profile',        icon: FiSettings,      label: 'Profile' },
+      ];
+  }
+};
+
+const ROLE_LABELS = {
+  super_admin:   'Super Admin',
+  college_admin: 'College Admin',
+  faculty:       'Faculty',
+  student:       'Student',
+};
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -25,160 +60,186 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileOpen,      setProfileOpen]      = useState(false);
+  const [notificationsOpen,setNotificationsOpen] = useState(false);
+  const [mobileOpen,       setMobileOpen]       = useState(false);
 
   const profileRef = useRef(null);
-  const notifyRef = useRef(null);
+  const notifyRef  = useRef(null);
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setProfileOpen(false);
-      }
-      if (notifyRef.current && !notifyRef.current.contains(event.target)) {
-        setNotificationsOpen(false);
-      }
+    function handleOutside(e) {
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (notifyRef.current  && !notifyRef.current.contains(e.target))  setNotificationsOpen(false);
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const navItems     = getNavItems(user?.role);
+  const roleLabel    = ROLE_LABELS[user?.role] ?? 'User';
 
   const notifications = [
-    { id: 1, text: "Streak Alert! You've logged 5 days in a row 🔥", time: "2 hrs ago" },
-    { id: 2, text: "New Challenge: Meat-free Friday is now active 🌱", time: "4 hrs ago" },
-    { id: 3, text: "Badge Earned: You are now a Green Commuter 🚲", time: "1 day ago" }
+    { id: 1, text: 'Welcome to EcoGuardian Campus Sustainability Portal!', time: 'Just now' },
+    { id: 2, text: 'New announcements published by administration.',          time: '1 hr ago' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 bg-mesh transition-colors duration-300">
-      
-      {/* Sidebar - Desktop */}
-      <aside className={`fixed left-0 top-0 h-full glass border-r border-gray-200/50 dark:border-white/5 z-40 hidden lg:flex flex-col transition-all duration-300 ${
-        sidebarCollapsed ? 'w-20' : 'w-64'
-      }`}>
-        {/* Logo Section */}
-        <div className="p-6 border-b border-gray-200/50 dark:border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 min-w-9 rounded-xl bg-gradient-to-br from-eco-400 to-ocean-500 flex items-center justify-center text-white text-lg">
-              🌿
-            </div>
-            {!sidebarCollapsed && (
-              <div className="animate-fade-in">
-                <h1 className="font-bold text-base text-gray-800 dark:text-white leading-tight">EcoGuardian</h1>
-                <p className="text-[10px] text-eco-600 dark:text-eco-400 font-semibold tracking-wider uppercase">SDG 13 Hub</p>
-              </div>
-            )}
+    <div className="min-h-screen flex bg-transparent transition-colors duration-200">
+
+      {/* ── Sidebar — Desktop ─────────────────────────────── */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 hidden lg:flex flex-col
+        bg-gradient-to-b from-white/60 via-white/55 to-eco-50/30
+        dark:from-slate-950/60 dark:via-slate-950/55 dark:to-eco-950/20
+        backdrop-blur-2xl
+        border-r border-eco-200/30 dark:border-eco-800/15
+        transition-[width] duration-200
+        ${sidebarCollapsed ? 'w-[68px]' : 'w-60'}
+      `}>
+        {/* Decorative green top accent */}
+        <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-eco-400 via-eco-600 to-eco-500" />
+
+        {/* Logo */}
+        <div className={`
+          flex items-center h-16 border-b border-eco-200/20 dark:border-eco-800/15 px-4 gap-3
+          ${sidebarCollapsed ? 'justify-center' : ''}
+        `}>
+          <div className="w-8 h-8 min-w-[32px] rounded-xl bg-gradient-to-br from-eco-500 to-eco-700 flex items-center justify-center shadow-sm shadow-eco-500/20">
+            <FiFeather size={16} className="text-white" />
           </div>
-          <button 
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-600 hidden lg:block"
-          >
-            <FiChevronLeft size={16} className={`transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-          </button>
+          {!sidebarCollapsed && (
+            <div className="animate-fade-in overflow-hidden">
+              <p className="font-display font-black text-sm text-gray-900 dark:text-white leading-none">EcoGuardian</p>
+              <p className="text-[10px] text-eco-600 dark:text-eco-400 font-bold uppercase tracking-wider mt-0.5">{roleLabel}</p>
+            </div>
+          )}
         </div>
 
-        {/* Sidebar Nav */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-white/90 dark:bg-slate-900/90
+                     border border-eco-200/60 dark:border-eco-800/30 flex items-center justify-center
+                     text-gray-400 hover:text-eco-600 hover:border-eco-400 transition-colors duration-150"
+          aria-label="Toggle sidebar"
+        >
+          <FiChevronLeft size={12} className={`transition-transform duration-200 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''} ${
-                sidebarCollapsed ? 'justify-center px-0' : ''
-              }`}
-              title={sidebarCollapsed ? label : ''}
+              title={sidebarCollapsed ? label : undefined}
+              className={({ isActive }) =>
+                `nav-link ${isActive ? 'nav-link-active' : ''} ${sidebarCollapsed ? 'justify-center !px-2' : ''}`
+              }
             >
-              <Icon size={18} />
-              {!sidebarCollapsed && <span className="text-sm font-medium">{label}</span>}
+              <Icon size={17} />
+              {!sidebarCollapsed && <span>{label}</span>}
             </NavLink>
           ))}
-          {user?.role === 'admin' && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''} ${
-                sidebarCollapsed ? 'justify-center px-0' : ''
-              }`}
-              title={sidebarCollapsed ? 'Admin Panel' : ''}
-            >
-              <FiShield size={18} />
-              {!sidebarCollapsed && <span className="text-sm font-medium">Admin Panel</span>}
-            </NavLink>
-          )}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200/50 dark:border-white/5 space-y-1.5">
-          <button onClick={toggle} className={`nav-link w-full ${sidebarCollapsed ? 'justify-center px-0' : ''}`} title="Toggle Theme">
-            {dark ? <FiSun size={18} /> : <FiMoon size={18} />}
-            {!sidebarCollapsed && <span className="text-sm font-medium">{dark ? 'Light Mode' : 'Dark Mode'}</span>}
+        {/* Footer */}
+        <div className={`px-3 py-4 border-t border-eco-200/20 dark:border-eco-800/15 space-y-0.5`}>
+          <button
+            onClick={toggle}
+            title={sidebarCollapsed ? (dark ? 'Light Mode' : 'Dark Mode') : undefined}
+            className={`nav-link w-full ${sidebarCollapsed ? 'justify-center !px-2' : ''}`}
+          >
+            {dark ? <FiSun size={17} /> : <FiMoon size={17} />}
+            {!sidebarCollapsed && <span>{dark ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
-          <button onClick={handleLogout} className={`nav-link w-full text-red-500 hover:text-red-600 hover:bg-red-500/5 dark:hover:bg-red-500/10 ${
-            sidebarCollapsed ? 'justify-center px-0' : ''
-          }`} title="Logout">
-            <FiLogOut size={18} />
-            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
-          </button>
+
+          {/* User mini-card */}
+          {!sidebarCollapsed && (
+            <div className="mt-2 flex items-center gap-2 px-2 py-2 rounded-xl bg-eco-50/40 dark:bg-eco-950/15 border border-eco-200/30 dark:border-eco-800/15 animate-fade-in">
+              <div className="w-7 h-7 min-w-[28px] rounded-lg bg-gradient-to-br from-eco-500 to-eco-700 flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm">
+                {user?.name?.charAt(0)}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate leading-none">{user?.name}</p>
+                <p className="text-[10px] text-gray-400 truncate mt-0.5">{user?.email || user?.userId}</p>
+              </div>
+              <button onClick={handleLogout} title="Logout" className="text-gray-400 hover:text-red-500 transition-colors p-0.5">
+                <FiLogOut size={14} />
+              </button>
+            </div>
+          )}
+
+          {sidebarCollapsed && (
+            <button onClick={handleLogout} title="Logout" className="nav-link w-full justify-center !px-2 !text-red-500 hover:!bg-red-50 dark:hover:!bg-red-950/30">
+              <FiLogOut size={17} />
+            </button>
+          )}
         </div>
+
+        {/* Bottom green accent glow */}
+        <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-eco-500/20 to-transparent" />
       </aside>
 
-      {/* Main Layout Area */}
-      <div className={`transition-all duration-300 lg:pl-64 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
-        
-        {/* Top Header */}
-        <header className="sticky top-0 z-30 glass border-b border-gray-200/50 dark:border-white/5 px-6 py-4 flex items-center justify-between">
-          
-          {/* Left: Mobile Menu Toggle / Welcome Header */}
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl"
-            >
-              <FiMenu size={20} />
-            </button>
-            <div className="hidden sm:block">
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white">
-                Welcome back, {user?.name || 'Guardian'} 👋
-              </h2>
-              <p className="text-xs text-gray-400 font-medium">Every green choice counts towards SDG 13.</p>
-            </div>
+      {/* ── Main column ───────────────────────────────────── */}
+      <div className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-200 ${
+        sidebarCollapsed ? 'lg:ml-[68px]' : 'lg:ml-60'
+      }`}>
+
+        {/* ── Header ─────────────────────────────────────── */}
+        <header className="
+          sticky top-0 z-30 h-16 flex items-center px-4 sm:px-6
+          bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl
+          border-b border-eco-200/20 dark:border-eco-800/15
+        ">
+          {/* Mobile menu */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-eco-50 dark:hover:bg-eco-950/30 mr-3"
+          >
+            <FiMenu size={20} />
+          </button>
+
+          {/* Page context */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-800 dark:text-white truncate leading-none">
+              Welcome back, <span className="text-eco-600 dark:text-eco-400">{user?.name || 'Guardian'}</span>
+            </p>
+            <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+              {roleLabel}
+              {user?.collegeId?.name     ? ` · ${user.collegeId.name}`     : ''}
+              {user?.departmentId?.name  ? ` · ${user.departmentId.name}`  : ''}
+            </p>
           </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-3">
-            {/* Search Bar */}
-            <div className="relative hidden md:block">
-              <FiSearch className="absolute left-3.5 top-3.5 text-gray-400" size={15} />
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                className="w-48 xl:w-60 pl-10 pr-4 py-2 text-xs rounded-xl border border-gray-200/50 dark:border-white/5 bg-gray-50/50 dark:bg-gray-900/50 focus:ring-2 focus:ring-eco-500/20 focus:border-eco-500 outline-none transition-all"
-              />
-            </div>
+          {/* Actions */}
+          <div className="flex items-center gap-2 ml-4">
 
-            {/* Notification Bell */}
+            {/* Notifications */}
             <div className="relative" ref={notifyRef}>
-              <button 
+              <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="p-2.5 rounded-xl border border-gray-200/50 dark:border-white/5 hover:bg-gray-100/50 dark:hover:bg-gray-900/50 text-gray-500 dark:text-gray-400 transition-all relative"
+                className="relative p-2 rounded-xl text-gray-400 hover:text-eco-600 hover:bg-eco-50 dark:hover:bg-eco-950/30 transition-colors"
               >
                 <FiBell size={18} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-eco-500"></span>
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-eco-500 ring-2 ring-white dark:ring-gray-900" />
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-3 w-80 glass rounded-2xl p-4 shadow-2xl border border-gray-200/50 dark:border-white/5 animate-slide-up">
-                  <h4 className="font-bold text-sm text-gray-800 dark:text-white mb-3">Notifications</h4>
+                <div className="
+                  absolute right-0 top-full mt-2 w-76 z-50
+                  bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl
+                  border border-eco-200/30 dark:border-eco-800/15
+                  rounded-2xl
+                  p-4 animate-slide-up
+                ">
+                  <p className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-widest mb-3">Notifications</p>
                   <div className="space-y-3">
                     {notifications.map((n) => (
-                      <div key={n.id} className="text-xs pb-2.5 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
-                        <p className="text-gray-600 dark:text-gray-300 font-medium leading-normal">{n.text}</p>
+                      <div key={n.id} className="text-xs border-b border-eco-100/50 dark:border-eco-900/20 last:border-0 pb-3 last:pb-0">
+                        <p className="text-gray-700 dark:text-gray-300 font-medium leading-snug">{n.text}</p>
                         <span className="text-[10px] text-gray-400 mt-1 block">{n.time}</span>
                       </div>
                     ))}
@@ -187,93 +248,106 @@ export default function Layout({ children }) {
               )}
             </div>
 
-            {/* User Dropdown */}
+            {/* User Menu */}
             <div className="relative" ref={profileRef}>
-              <button 
+              <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl border border-gray-200/50 dark:border-white/5 hover:bg-gray-100/50 dark:hover:bg-gray-900/50 text-gray-500 dark:text-gray-400 transition-all"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-eco-50 dark:hover:bg-eco-950/30 transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-eco-400 to-ocean-500 flex items-center justify-center text-white text-xs font-bold capitalize select-none">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-eco-500 to-eco-700 flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm">
                   {user?.name?.charAt(0)}
                 </div>
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 hidden md:block">{user?.name}</span>
-                <FiChevronDown size={14} className={`transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`} />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 hidden sm:block">{user?.name}</span>
+                <FiChevronDown size={13} className={`text-gray-400 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-3 w-48 glass rounded-2xl p-2 shadow-2xl border border-gray-200/50 dark:border-white/5 animate-slide-up">
-                  <button onClick={() => { setProfileOpen(false); navigate('/profile'); }} className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all font-medium">
-                    <FiUser size={15} /> My Profile
+                <div className="
+                  absolute right-0 top-full mt-2 w-44 z-50
+                  bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl
+                  border border-eco-200/30 dark:border-eco-800/15
+                  rounded-2xl
+                  p-1.5 animate-slide-up
+                ">
+                  <button onClick={() => { setProfileOpen(false); navigate('/profile'); }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs text-gray-700 dark:text-gray-300 hover:bg-eco-50 dark:hover:bg-eco-950/30 font-medium transition-colors">
+                    <FiUser size={13} /> My Profile
                   </button>
-                  {user?.role === 'admin' && (
-                    <button onClick={() => { setProfileOpen(false); navigate('/admin'); }} className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all font-medium">
-                      <FiShield size={15} /> Admin Panel
+                  {['super_admin', 'college_admin'].includes(user?.role) && (
+                    <button onClick={() => { setProfileOpen(false); navigate('/admin'); }}
+                      className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs text-gray-700 dark:text-gray-300 hover:bg-eco-50 dark:hover:bg-eco-950/30 font-medium transition-colors">
+                      <FiShield size={13} /> Admin Panel
                     </button>
                   )}
-                  <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
-                  <button onClick={handleLogout} className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs text-red-500 hover:bg-red-500/5 dark:hover:bg-red-500/10 transition-all font-semibold">
-                    <FiLogOut size={15} /> Logout
+                  <div className="divider !my-1" />
+                  <button onClick={handleLogout}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 font-semibold transition-colors">
+                    <FiLogOut size={13} /> Sign Out
                   </button>
                 </div>
               )}
             </div>
-
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+        {/* ── Page decoration — subtle green accent bar under header ── */}
+        <div className="h-[2px] bg-gradient-to-r from-transparent via-eco-500/15 to-transparent" />
+
+        {/* ── Page Content ───────────────────────────────── */}
+        <main className="flex-1 p-5 sm:p-7 max-w-7xl w-full mx-auto animate-fade-in">
           {children}
         </main>
       </div>
 
-      {/* Mobile Drawer Navigation overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>
-          <div className="relative w-64 glass h-full p-6 flex flex-col z-10 border-r border-white/10 animate-slide-right">
-            <div className="flex items-center justify-between pb-6 border-b border-gray-200/50 dark:border-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🌿</span>
-                <span className="font-bold text-gray-800 dark:text-white">EcoGuardian</span>
+      {/* ── Mobile Drawer ────────────────────────────────── */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="
+            absolute inset-y-0 left-0 w-60 flex flex-col
+            bg-gradient-to-b from-white/95 via-white/90 to-eco-50/80
+            dark:from-slate-950/95 dark:via-slate-950/90 dark:to-eco-950/40
+            backdrop-blur-2xl
+            border-r border-eco-200/30 dark:border-eco-800/15
+            animate-slide-right
+          ">
+            <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-eco-400 via-eco-600 to-eco-500" />
+
+            <div className="flex items-center h-16 px-4 border-b border-eco-200/20 dark:border-eco-800/15 gap-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-eco-500 to-eco-700 flex items-center justify-center shadow-sm">
+                <FiFeather size={16} className="text-white" />
+              </div>
+              <div>
+                <p className="font-display font-black text-sm text-gray-900 dark:text-white">EcoGuardian</p>
+                <p className="text-[10px] text-eco-600 dark:text-eco-400 font-bold uppercase tracking-wider">{roleLabel}</p>
               </div>
             </div>
 
-            <nav className="flex-1 py-6 space-y-2 overflow-y-auto">
+            <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
               {navItems.map(({ to, icon: Icon, label }) => (
-                <NavLink 
-                  key={to} 
-                  to={to} 
-                  onClick={() => setMobileMenuOpen(false)}
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
                 >
-                  <Icon size={18} />
-                  <span className="text-sm font-medium">{label}</span>
+                  <Icon size={17} />
+                  <span>{label}</span>
                 </NavLink>
               ))}
-              {user?.role === 'admin' && (
-                <NavLink 
-                  to="/admin" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
-                >
-                  <FiShield size={18} />
-                  <span className="text-sm font-medium">Admin Panel</span>
-                </NavLink>
-              )}
             </nav>
 
-            <div className="pt-6 border-t border-gray-200/50 dark:border-white/5 space-y-2">
-              <button onClick={() => { toggle(); setMobileMenuOpen(false); }} className="nav-link w-full">
-                {dark ? <FiSun size={18} /> : <FiMoon size={18} />}
-                <span className="text-sm font-medium">{dark ? 'Light Mode' : 'Dark Mode'}</span>
+            <div className="px-3 py-4 border-t border-eco-200/20 dark:border-eco-800/15 space-y-0.5">
+              <button onClick={() => { toggle(); setMobileOpen(false); }} className="nav-link w-full">
+                {dark ? <FiSun size={17} /> : <FiMoon size={17} />}
+                <span>{dark ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
-              <button onClick={handleLogout} className="nav-link w-full text-red-500 hover:text-red-600">
-                <FiLogOut size={18} />
-                <span className="text-sm font-medium">Logout</span>
+              <button onClick={handleLogout} className="nav-link w-full !text-red-500 hover:!bg-red-50 dark:hover:!bg-eco-950/20">
+                <FiLogOut size={17} />
+                <span>Sign Out</span>
               </button>
             </div>
-          </div>
+          </aside>
         </div>
       )}
 

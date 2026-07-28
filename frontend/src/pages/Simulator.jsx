@@ -188,28 +188,26 @@ export default function Simulator() {
                 </div>
               </div>
 
-              {/* ML Impact Projections */}
-              {result.mlPrediction && (
-                <div className="glass-card p-5">
-                  <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                    <FiTrendingUp className="text-eco-500" /> ML Yearly Twin Projections
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="p-4 rounded-xl bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5">
-                      <p className="text-[9px] text-gray-400 uppercase font-bold">Yearly Savings</p>
-                      <p className="text-lg font-black text-eco-600 dark:text-eco-400 mt-1">{result.mlPrediction.yearlySavings} <span className="text-[10px] font-normal text-gray-400">kg</span></p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5">
-                      <p className="text-[9px] text-gray-400 uppercase font-bold">Trees Equivalent</p>
-                      <p className="text-lg font-black text-eco-600 dark:text-eco-400 mt-1">{result.mlPrediction.treesEquivalent} 🌳</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5">
-                      <p className="text-[9px] text-gray-400 uppercase font-bold">Impact Score</p>
-                      <p className="text-lg font-black text-ocean-600 dark:text-ocean-400 mt-1">{result.mlPrediction.impactScore} <span className="text-[10px] font-normal text-gray-400">/100</span></p>
-                    </div>
+              {/* Yearly Impact Projections */}
+              <div className="glass-card p-5">
+                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <FiTrendingUp className="text-eco-500" /> Yearly Twin Projections{result.mlPrediction ? ' (ML Enhanced)' : ''}
+                </h3>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-4 rounded-xl bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">Yearly Savings</p>
+                    <p className="text-lg font-black text-eco-600 dark:text-eco-400 mt-1">{result.yearlySavings ?? (result.mlPrediction?.yearlySavings ?? 0)} <span className="text-[10px] font-normal text-gray-400">kg</span></p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">Trees Equivalent</p>
+                    <p className="text-lg font-black text-eco-600 dark:text-eco-400 mt-1">{result.treesEquivalent ?? (result.mlPrediction?.treesEquivalent ?? 0)} 🌳</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5">
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">Impact Score</p>
+                    <p className="text-lg font-black text-ocean-600 dark:text-ocean-400 mt-1">{result.impactScore ?? (result.mlPrediction?.impactScore ?? 0)} <span className="text-[10px] font-normal text-gray-400">/100</span></p>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Comparison Chart */}
               {result.comparison && (

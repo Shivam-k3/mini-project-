@@ -128,13 +128,19 @@ function simulateScenario(baseline, changes) {
   const baselineResult = calculateEmissions(baseline);
   const scenarioResult = calculateEmissions(modified);
 
+  const reduction = Math.round((baselineResult.total - scenarioResult.total) * 100) / 100;
+  const reductionPercent = baselineResult.total > 0
+    ? Math.round(((baselineResult.total - scenarioResult.total) / baselineResult.total) * 10000) / 100
+    : 0;
+
   return {
     baseline: baselineResult,
     scenario: scenarioResult,
-    reduction: Math.round((baselineResult.total - scenarioResult.total) * 100) / 100,
-    reductionPercent: baselineResult.total > 0
-      ? Math.round(((baselineResult.total - scenarioResult.total) / baselineResult.total) * 10000) / 100
-      : 0,
+    reduction,
+    reductionPercent,
+    yearlySavings: Math.round(reduction * 365 * 100) / 100,
+    treesEquivalent: Math.round(reduction * 365 / 21),
+    impactScore: Math.min(100, Math.round(reductionPercent * 1.5)),
   };
 }
 

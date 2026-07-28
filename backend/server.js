@@ -10,6 +10,9 @@ const aiRoutes = require('./routes/ai');
 const gamificationRoutes = require('./routes/gamification');
 const reportsRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin');
+const superAdminRoutes = require('./routes/superAdmin');
+const collegeAdminRoutes = require('./routes/collegeAdmin');
+const facultyRoutes = require('./routes/faculty');
 
 connectDB().then(() => {
   const seedHelper = require('./scripts/seedHelper');
@@ -25,6 +28,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'EcoGuardian AI Backend', sdg: 'SDG 13 - Climate Action' });
 });
 
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to the EcoGuardian AI API Backend!',
+    status: 'online',
+    health: '/api/health',
+    sdg: 'SDG 13: Climate Action'
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/carbon', carbonRoutes);
 app.use('/api/simulator', simulatorRoutes);
@@ -32,6 +44,9 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/superadmin', superAdminRoutes);
+app.use('/api/collegeadmin', collegeAdminRoutes);
+app.use('/api/faculty', facultyRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

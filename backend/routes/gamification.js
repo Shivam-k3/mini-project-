@@ -11,7 +11,8 @@ const BADGES = [
   { id: 'month_streak', name: 'Monthly Master', description: '30-day logging streak', icon: '⭐' },
   { id: 'eco_hero', name: 'Eco Hero', description: 'Reach eco score of 80+', icon: '🦸' },
   { id: 'carbon_cut', name: 'Carbon Cutter', description: 'Reduce emissions by 20%', icon: '✂️' },
-  { id: 'green_commuter', name: 'Green Commuter', description: 'Zero car emissions for a week', icon: '🚲' },
+  { id: 'green_commuter', name: 'Green Commuter', description: 'Zero transport emissions in a day', icon: '🚲' },
+  { id: 'eco_warrior', name: 'Eco Warrior', description: 'Earn 500+ Green Points', icon: '🏅' },
   { id: 'challenge_champ', name: 'Challenge Champion', description: 'Complete 5 challenges', icon: '🏆' },
   { id: 'solar_pioneer', name: 'Solar Pioneer', description: 'Simulate solar panel installation', icon: '☀️' },
 ];
@@ -28,7 +29,14 @@ router.get('/stats', protect, async (req, res) => {
 });
 
 router.get('/challenges', protect, async (req, res) => {
-  const challenges = await Challenge.find({ isActive: true });
+  const challenges = await Challenge.find({
+    isActive: true,
+    $or: [
+      { collegeId: null }, // Global/platform-wide
+      { collegeId: req.user.collegeId, departmentId: null }, // College-wide
+      { collegeId: req.user.collegeId, departmentId: req.user.departmentId } // Department-specific
+    ]
+  });
   const user = await User.findById(req.user._id);
   const completed = user.gamification.completedChallenges.map(String);
   const enriched = challenges.map((c) => ({
@@ -64,7 +72,11 @@ router.post('/challenges/:id/complete', protect, async (req, res) => {
 });
 
 router.get('/leaderboard', protect, async (req, res) => {
-  const users = await User.find({ role: 'user' })
+  const filter = { role: 'student' };
+  if (req.user.collegeId) {
+    filter.collegeId = req.user.collegeId;
+  }
+  const users = await User.find(filter)
     .select('name gamification.ecoScore gamification.greenPoints gamification.streak')
     .sort({ 'gamification.greenPoints': -1 })
     .limit(20);

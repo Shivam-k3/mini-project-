@@ -10,6 +10,8 @@ const challengeSchema = new mongoose.Schema({
   badge: { type: String, default: '' },
   isActive: { type: Boolean, default: true },
   weekNumber: { type: Number },
+  collegeId: { type: mongoose.Schema.Types.ObjectId, ref: 'College', default: null },
+  departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
   createdAt: { type: Date, default: Date.now },
 });
 
