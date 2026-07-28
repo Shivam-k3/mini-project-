@@ -13,6 +13,35 @@
 
 ---
 
+## Feature Summary Table
+
+| # | Feature | Category | Status | Key Technical Detail |
+|---|---|---|---|---|
+| 1 | **Carbon Calculator** | Core | ✅ Production | 7-category input → `calculateEmissions()` → total + breakdown in kg CO₂ |
+| 2 | **Dashboard & Analytics** | Core | ✅ Production | Daily/weekly/monthly totals, pie charts, line trends, category breakdown |
+| 3 | **XGBoost ML Predictions** | ML | ✅ Production | `predictor.py`: 8 features, scoped models (`carbon_model_{scope}_{id}.pkl`), 200 estimators |
+| 4 | **Data-Aware Prediction Tiers** | ML | ✅ Production | <10 entries → rolling avg, 10–30 → hybrid, 30+ → full XGBoost (prevents overfitting) |
+| 5 | **SHAP Explainable AI** | ML | ✅ Production | `shap_explainer.py`: TreeExplainer + composition analysis; returns contributions, topFactors, modelFeatureImportance |
+| 6 | **Digital Twin Simulator** | Simulation | ✅ Production | 6 presets (car→metro, EV, solar, vegetarian, bus, electricity cut) + custom sliders; yearly savings, trees equivalent, impact score |
+| 7 | **Dual Calculation (JS + Python)** | Simulation | ✅ Verified | `emissionFactors.js` ↔ `emission_utils.py`: identical factors and formulas; tested matching outputs |
+| 8 | **AI Sustainability Assistant** | AI | ✅ Production | Gemini 2.0 Flash / GPT-4o-mini + context-aware fallback (user emissions, eco score, streak) |
+| 9 | **Multi-Tenant Roles** | Auth | ✅ Production | JWT + bcrypt; 4 roles: `super_admin` → `college_admin` → `faculty` → `student`; middleware-enforced ACL |
+| 10 | **Scoped ML Models** | ML | ✅ Production | `carbon_model_user_{id}.pkl`, `carbon_model_department_{id}.pkl`, `carbon_model_college_{id}.pkl` — no cross-tenant leakage |
+| 11 | **Gamification System** | Engagement | ✅ Production | Eco Score (0–100), Green Points, streak tracking, 9 badges, weekly challenges, department leaderboard |
+| 12 | **Auto-Badge Awarding** | Engagement | ✅ New | 7 badges auto-awarded on entry log: first_entry, week_streak, month_streak, eco_hero, carbon_cut, green_commuter, eco_warrior |
+| 13 | **ExplainableAI — Real Data** | UI | ✅ Fixed | Confidence gauge from real ML confidence, drivers from topFactors, recommendations from SHAP; no hardcoded values |
+| 14 | **College Admin Panel** | Admin | ✅ Production | Department CRUD, user provisioning, CSV import, campus analytics, campus ML predictions |
+| 15 | **Faculty Panel** | Admin | ✅ Production | Department analytics, student participation monitor, dept challenges, dept ML predictions |
+| 16 | **Super Admin Panel** | Admin | ✅ Production | College CRUD, college admin provisioning, global analytics, college comparison rankings, announcements |
+| 17 | **PDF Reports** | Reports | ✅ Production | PDFKit-generated carbon audit with summary, breakdown, predictions, SHAP insights, AI recommendations |
+| 18 | **In-Memory DB Fallback** | DevOps | ✅ Production | `mongodb-memory-server`: zero-setup development; auto-seeding of demo accounts on every start |
+| 19 | **Eco-Themed UI** | UI | ✅ Production | Tailwind CSS: gradient sidebar, green-tinted glass cards, animated stat cards, green scrollbar, responsive grid |
+| 20 | **Walk-Forward Evaluation** | ML | ✅ Verified | Sliding window validation (50 users × 60 days); XGBoost achieves 5.45 kg MAE (-11.8% vs naive mean) |
+
+**Legend:** ✅ Production = fully implemented and tested | ✅ Verified = mathematically verified | ✅ New = added in latest update | ✅ Fixed = bug resolved
+
+---
+
 ## Table of Contents
 
 1. [Abstract](#1-abstract)
