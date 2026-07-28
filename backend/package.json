@@ -1,6 +1,7 @@
 {
   "name": "ecoguardian-backend",
   "version": "1.0.0",
+  "author": "Shivam Kumar",
   "description": "EcoGuardian AI - Backend API for SDG 13 Climate Action",
   "main": "server.js",
   "scripts": {

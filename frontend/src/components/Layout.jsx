@@ -297,6 +297,13 @@ export default function Layout({ children }) {
         <main className="flex-1 p-5 sm:p-7 max-w-7xl w-full mx-auto animate-fade-in">
           {children}
         </main>
+
+        {/* ── Footer ──────────────────────────────────────── */}
+        <footer className="text-center py-3 px-5 border-t border-eco-200/20 dark:border-eco-800/15">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            &copy; {new Date().getFullYear()} <span className="font-semibold text-gray-500 dark:text-gray-400">Shivam Kumar</span>. All rights reserved.
+          </p>
+        </footer>
       </div>
 
       {/* ── Mobile Drawer ────────────────────────────────── */}

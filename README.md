@@ -1119,5 +1119,6 @@ ecoguardian-ai/
 
 ## License
 
-MIT License — Built for SDG 13 Climate Action education and research.  
-*© 2025 EcoGuardian AI Contributors*
+© 2025 **Shivam Kumar**. All rights reserved.
+
+This project and all associated code, documentation, and intellectual property are the exclusive work of Shivam Kumar. Built for SDG 13 Climate Action education and research as part of academic coursework.

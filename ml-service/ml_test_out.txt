@@ -1,0 +1,9 @@
+EcoGuardian ML Service starting on port 8000
+ * Serving Flask app 'app'
+ * Debug mode: on
+EcoGuardian ML Service starting on port 8000
+EcoGuardian ML Service starting on port 8000
+EcoGuardian ML Service starting on port 8000
+EcoGuardian ML Service starting on port 8000
+EcoGuardian ML Service starting on port 8000
+EcoGuardian ML Service starting on port 8000
