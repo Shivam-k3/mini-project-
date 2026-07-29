@@ -51,62 +51,70 @@ router.get('/scenarios', protect, (req, res) => {
 });
 
 router.post('/simulate', protect, async (req, res) => {
-  const { changes, name } = req.body;
+  try {
+    const { changes, name } = req.body;
 
-  const latestEntry = await CarbonEntry.findOne({ user: req.user._id }).sort({ date: -1 });
-  const baseline = latestEntry ? latestEntry.toObject() : {
-    transport: { bike: 0, bus: 0, metro: 0, car: 10, ev: 0, flight: 0 },
-    electricity: 15,
-    water: 150,
-    foodHabit: 'nonVegetarian',
-    shoppingFrequency: 'medium',
-    wasteGeneration: 'medium',
-    fuel: { petrol: 0, diesel: 0, lpg: 0 },
-    solarPanels: false,
-  };
+    const latestEntry = await CarbonEntry.findOne({ user: req.user._id }).sort({ date: -1 });
+    const baseline = latestEntry ? latestEntry.toObject() : {
+      transport: { bike: 0, bus: 0, metro: 0, car: 10, ev: 0, flight: 0 },
+      electricity: 15,
+      water: 150,
+      foodHabit: 'nonVegetarian',
+      shoppingFrequency: 'medium',
+      wasteGeneration: 'medium',
+      fuel: { petrol: 0, diesel: 0, lpg: 0 },
+      solarPanels: false,
+    };
 
-  const result = simulateScenario(baseline, changes);
+    const result = simulateScenario(baseline, changes);
 
-  // Optionally enhance with ML service (yearly projections, confidence)
-  const mlResult = await getDigitalTwinSimulation(baseline, changes);
-  if (mlResult) {
-    result.mlPrediction = mlResult;
-    // Override local fields with ML's more detailed values
-    result.yearlySavings = mlResult.yearlySavings;
-    result.treesEquivalent = mlResult.treesEquivalent;
-    result.impactScore = mlResult.impactScore;
+    const mlResult = await getDigitalTwinSimulation(baseline, changes);
+    if (mlResult) {
+      result.mlPrediction = mlResult;
+      result.yearlySavings = mlResult.yearlySavings;
+      result.treesEquivalent = mlResult.treesEquivalent;
+      result.impactScore = mlResult.impactScore;
+    }
+
+    const simulation = await Simulation.create({
+      user: req.user._id,
+      name: name || 'Custom Simulation',
+      baseline,
+      changes,
+      results: {
+        baselineTotal: result.baseline.total,
+        scenarioTotal: result.scenario.total,
+        reduction: result.reduction,
+        reductionPercent: result.reductionPercent,
+      },
+    });
+
+    res.json({
+      ...result,
+      simulationId: simulation._id,
+      comparison: {
+        labels: ['Baseline', 'Scenario'],
+        baseline: Object.values(result.baseline.breakdown),
+        scenario: Object.values(result.scenario.breakdown),
+        categories: Object.keys(result.baseline.breakdown),
+      },
+    });
+  } catch (error) {
+    console.error('Simulation error:', error);
+    res.status(500).json({ message: 'Simulation failed', error: error.message });
   }
-
-  const simulation = await Simulation.create({
-    user: req.user._id,
-    name: name || 'Custom Simulation',
-    baseline,
-    changes,
-    results: {
-      baselineTotal: result.baseline.total,
-      scenarioTotal: result.scenario.total,
-      reduction: result.reduction,
-      reductionPercent: result.reductionPercent,
-    },
-  });
-
-  res.json({
-    ...result,
-    simulationId: simulation._id,
-    comparison: {
-      labels: ['Baseline', 'Scenario'],
-      baseline: Object.values(result.baseline.breakdown),
-      scenario: Object.values(result.scenario.breakdown),
-      categories: Object.keys(result.baseline.breakdown),
-    },
-  });
 });
 
 router.get('/history', protect, async (req, res) => {
-  const simulations = await Simulation.find({ user: req.user._id })
-    .sort({ createdAt: -1 })
-    .limit(20);
-  res.json(simulations);
+  try {
+    const simulations = await Simulation.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(20);
+    res.json(simulations);
+  } catch (error) {
+    console.error('Simulation history error:', error);
+    res.status(500).json({ message: 'Failed to load simulation history' });
+  }
 });
 
 module.exports = router;

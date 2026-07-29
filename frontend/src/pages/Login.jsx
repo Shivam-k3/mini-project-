@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  FiUser, FiLock, FiEye, FiEyeOff, FiFeather, FiCheck,
+  FiUser, FiLock, FiEye, FiEyeOff, FiCheck,
   FiArrowRight, FiMail
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -13,6 +13,22 @@ const sandboxAccounts = [
   { label: 'Faculty', id: 'sarah@mit.edu', pass: 'Temp@123' },
   { label: 'Student', id: 'demo@ecoguardian.ai', pass: 'demo123' },
 ];
+
+function Typewriter({ text, speed = 60 }) {
+  const [displayed, setDisplayed] = useState('');
+  useEffect(() => {
+    if (!text) return;
+    let i = 0;
+    setDisplayed('');
+    const timer = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(timer);
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
+  return <>{displayed}<span className="animate-pulse" style={{ opacity: displayed.length < text.length ? 1 : 0 }}>|</span></>;
+}
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -46,8 +62,8 @@ export default function Login() {
       <section className="auth-brand-panel" aria-label="EcoGuardian AI introduction">
         <div className="auth-brand-overlay" />
         <div className="auth-brand-content">
-          <div className="auth-mark"><FiFeather size={32} /></div>
-          <p className="auth-brand-name">EcoGuardian AI</p>
+          <div className="auth-mark"><img src="/leaf.svg" alt="EcoGuardian AI" className="w-14 h-14" /></div>
+          <p className="auth-brand-name"><Typewriter text="EcoGuardian AI" speed={65} /></p>
           <h1>Pioneering the future of sustainability through intelligent ecological stewardship.</h1>
 
           <div className="auth-proof-list">
@@ -66,7 +82,7 @@ export default function Login() {
 
       <section className="auth-form-panel">
         <div className="auth-mobile-brand">
-          <span><FiFeather size={18} /></span> EcoGuardian AI
+          <img src="/leaf.svg" alt="" className="w-5 h-5 inline-block" /> <Typewriter text="EcoGuardian AI" speed={65} />
         </div>
 
         <div className="auth-form-wrap">
@@ -77,7 +93,7 @@ export default function Login() {
           </header>
 
           <button type="button" className="auth-google-button" aria-label="Google sign-in is not configured">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />

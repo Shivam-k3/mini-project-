@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { carbonAPI } from '../services/api';
 import { ShapBarChart } from '../components/Charts';
+import { ExplainableAISkeleton } from '../components/Skeleton';
 import { FiCpu, FiInfo, FiActivity, FiTrendingUp } from 'react-icons/fi';
 
 export default function ExplainableAI() {
@@ -18,13 +19,7 @@ export default function ExplainableAI() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-eco-500 border-t-transparent" />
-      </div>
-    );
-  }
+  if (loading) return <ExplainableAISkeleton />;
 
   const explanation = data?.explanation || "No carbon data yet. Log your activities in the Calculator to generate an AI-powered analysis.";
   const contributions = data?.contributions || {};
@@ -40,7 +35,7 @@ export default function ExplainableAI() {
   const primaryPct = topFactors[0]?.percentage || null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       
       {/* Header */}
       <div>

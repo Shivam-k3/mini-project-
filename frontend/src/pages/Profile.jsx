@@ -44,7 +44,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       
       {/* Header */}
       <div>

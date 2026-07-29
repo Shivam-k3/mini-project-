@@ -1,51 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0a2e1f"/>
       <stop offset="100%" stop-color="#166534"/>
     </linearGradient>
-    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#22c55e"/>
-      <stop offset="100%" stop-color="#0a2e1f"/>
-    </linearGradient>
   </defs>
 
-  <!-- Outer ring -->
+  <!-- Logo mark (same as leaf.svg) -->
   <circle cx="50" cy="50" r="47" fill="none" stroke="#0a2e1f" stroke-width="3.5"/>
-  <circle cx="50" cy="50" r="45" fill="url(#bg)"/>
+  <circle cx="50" cy="50" r="45" fill="url(#bg2)"/>
 
-  <!-- Globe latitude lines -->
   <ellipse cx="50" cy="50" rx="32" ry="32" fill="none" stroke="#22c55e" stroke-width="0.6" opacity="0.25"/>
   <ellipse cx="50" cy="50" rx="32" ry="16" fill="none" stroke="#22c55e" stroke-width="0.6" opacity="0.25"/>
   <ellipse cx="50" cy="50" rx="16" ry="32" fill="none" stroke="#22c55e" stroke-width="0.6" opacity="0.25"/>
   <line x1="18" y1="50" x2="82" y2="50" stroke="#22c55e" stroke-width="0.6" opacity="0.25"/>
   <line x1="50" y1="18" x2="50" y2="82" stroke="#22c55e" stroke-width="0.6" opacity="0.25"/>
-
-  <!-- Globe arc (3D effect) -->
   <path d="M 18 50 A 32 32 0 0 0 82 50" fill="none" stroke="#22c55e" stroke-width="0.8" opacity="0.3"/>
   <path d="M 50 18 A 32 32 0 0 1 50 82" fill="none" stroke="#22c55e" stroke-width="0.8" opacity="0.3"/>
 
-  <!-- Human profile silhouette (lower-right, facing right) -->
   <path d="M 44 42 C 44 36, 50 34, 55 38 C 59 40, 62 44, 62 48 C 62 50, 60 53, 58 55 C 58 58, 60 62, 62 66 C 64 70, 62 74, 58 76 L 42 76 C 38 74, 36 70, 38 66 C 40 62, 42 58, 42 55 C 40 53, 38 50, 38 46 C 38 44, 40 42, 44 42 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.18)" stroke-width="0.8"/>
 
-  <!-- Circuit connections in head -->
   <path d="M 46 48 L 50 48 L 50 54 L 54 54 L 54 58" stroke="#22c55e" stroke-width="0.9" fill="none" opacity="0.7"/>
   <circle cx="46" cy="48" r="1.8" fill="#22c55e"/>
   <circle cx="50" cy="48" r="1.2" fill="#22c55e"/>
   <circle cx="50" cy="54" r="1.2" fill="#22c55e"/>
   <circle cx="54" cy="54" r="1.2" fill="#22c55e"/>
   <circle cx="54" cy="58" r="1.8" fill="#22c55e"/>
-
-  <!-- Circuit connections lower -->
   <path d="M 56 64 L 56 68 L 52 68" stroke="#22c55e" stroke-width="0.9" fill="none" opacity="0.7"/>
   <circle cx="56" cy="64" r="1.8" fill="#22c55e"/>
   <circle cx="56" cy="68" r="1.2" fill="#22c55e"/>
   <circle cx="52" cy="68" r="1.2" fill="#22c55e"/>
 
-  <!-- Leaf at bottom -->
   <path d="M 72 62 C 78 54, 88 56, 90 64 C 88 72, 78 74, 72 62 Z" fill="#22c55e" opacity="0.85"/>
   <path d="M 72 62 C 78 58, 84 58, 88 62" stroke="#0a2e1f" stroke-width="0.5" fill="none" opacity="0.4"/>
-
-  <!-- Leaf vein -->
   <path d="M 74 63 C 80 62, 86 64, 88 65" stroke="#4ade80" stroke-width="0.8" fill="none" opacity="0.6"/>
+
+  <!-- EcoGuardian AI text -->
+  <text x="115" y="42" font-family="'Manrope', 'Segoe UI', Arial, sans-serif" font-size="22" font-weight="800" fill="#0a2e1f" letter-spacing="-0.5">EcoGuardian</text>
+
+  <!-- Leaf accent on the 'i' in EcoGuardian -->
+  <path d="M 218 26 C 221 22, 226 23, 227 27 C 225 30, 221 30, 218 26 Z" fill="#22c55e"/>
+
+  <text x="229" y="42" font-family="'Manrope', 'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#166534" letter-spacing="1">AI</text>
+
+  <!-- Tagline -->
+  <text x="115" y="66" font-family="'DM Sans', 'Segoe UI', Arial, sans-serif" font-size="9" font-weight="600" fill="#4a7c5c" letter-spacing="2.5">
+    PREDICT · UNDERSTAND · ACT · SUSTAIN
+  </text>
 </svg>

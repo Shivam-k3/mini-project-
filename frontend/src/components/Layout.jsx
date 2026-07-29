@@ -5,8 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
   FiHome, FiPlusCircle, FiCpu, FiMessageCircle, FiAward,
   FiFileText, FiSettings, FiLogOut, FiSun, FiMoon, FiShield,
-  FiBell, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity,
-  FiFeather
+  FiBell, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity
 } from 'react-icons/fi';
 
 const getNavItems = (role) => {
@@ -106,9 +105,7 @@ export default function Layout({ children }) {
           flex items-center h-16 border-b border-eco-200/20 dark:border-eco-800/15 px-4 gap-3
           ${sidebarCollapsed ? 'justify-center' : ''}
         `}>
-          <div className="w-8 h-8 min-w-[32px] rounded-xl bg-gradient-to-br from-eco-500 to-eco-700 flex items-center justify-center shadow-sm shadow-eco-500/20">
-            <FiFeather size={16} className="text-white" />
-          </div>
+          <img src="/leaf.svg" alt="EcoGuardian AI" className="w-8 h-8 min-w-[32px]" />
           {!sidebarCollapsed && (
             <div className="animate-fade-in overflow-hidden">
               <p className="font-display font-black text-sm text-gray-900 dark:text-white leading-none">EcoGuardian</p>
@@ -321,9 +318,7 @@ export default function Layout({ children }) {
             <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-eco-400 via-eco-600 to-eco-500" />
 
             <div className="flex items-center h-16 px-4 border-b border-eco-200/20 dark:border-eco-800/15 gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-eco-500 to-eco-700 flex items-center justify-center shadow-sm">
-                <FiFeather size={16} className="text-white" />
-              </div>
+              <img src="/leaf.svg" alt="EcoGuardian AI" className="w-8 h-8" />
               <div>
                 <p className="font-display font-black text-sm text-gray-900 dark:text-white">EcoGuardian</p>
                 <p className="text-[10px] text-eco-600 dark:text-eco-400 font-bold uppercase tracking-wider">{roleLabel}</p>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { FiFeather, FiArrowLeft, FiMail, FiShield } from 'react-icons/fi';
+import { FiArrowLeft, FiMail, FiShield } from 'react-icons/fi';
 
 const updated = '23 July 2026';
 
@@ -103,7 +103,7 @@ export default function Legal() {
   return (
     <main className="legal-page">
       <header className="legal-nav">
-        <Link to="/login" className="legal-brand"><FiFeather size={18} /> EcoGuardian AI</Link>
+        <Link to="/login" className="legal-brand"><img src="/leaf.svg" alt="" className="w-5 h-5 inline-block" /> EcoGuardian AI</Link>
         <Link to="/login" className="legal-back"><FiArrowLeft size={15} /> Back to sign in</Link>
       </header>
 

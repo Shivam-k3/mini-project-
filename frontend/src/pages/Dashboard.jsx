@@ -3,20 +3,12 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { carbonAPI, gamificationAPI, collegeAdminAPI, facultyAPI, superAdminAPI } from '../services/api';
 import StatCard from '../components/StatCard';
+import { DashboardSkeleton } from '../components/Skeleton';
 import { EmissionPieChart, TrendLineChart, ShapBarChart } from '../components/Charts';
 import {
   FiPlusCircle, FiCpu, FiMessageCircle, FiArrowRight,
   FiUsers, FiShield, FiZap,
 } from 'react-icons/fi';
-
-/* ── Shared loading spinner ─────────────────────────────── */
-function Spinner() {
-  return (
-    <div className="flex items-center justify-center h-80">
-      <span className="w-8 h-8 rounded-full border-2 border-eco-200 border-t-eco-600 animate-spin" />
-    </div>
-  );
-}
 
 /* ── Page title block ───────────────────────────────────── */
 function PageHeader({ title, subtitle, actions }) {
@@ -65,7 +57,7 @@ function StudentDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <DashboardSkeleton />;
 
   const shap        = data?.shapExplanation;
   const predictions = data?.predictions;
@@ -287,7 +279,7 @@ function FacultyDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -366,7 +358,7 @@ function CollegeAdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <DashboardSkeleton />;
 
   const deptEmissions = {};
   stats?.deptComparison?.forEach(d => { deptEmissions[d.department] = d.emissions; });
@@ -471,7 +463,7 @@ function SuperAdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <DashboardSkeleton />;
 
   const collegeEmissions = {};
   collegeRankings?.comparisons?.forEach(c => { collegeEmissions[c.code] = c.emissions; });

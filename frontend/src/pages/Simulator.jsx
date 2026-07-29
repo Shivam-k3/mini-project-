@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { simulatorAPI } from '../services/api';
 import { ComparisonBarChart } from '../components/Charts';
+import { CardSkeleton } from '../components/Skeleton';
 import toast from 'react-hot-toast';
 import { FiPlay, FiSettings, FiSliders, FiCpu, FiTrendingUp, FiTrendingDown, FiShield } from 'react-icons/fi';
 
@@ -8,6 +9,7 @@ export default function Simulator() {
   const [scenarios, setScenarios] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [scenariosLoading, setScenariosLoading] = useState(true);
   const [customChanges, setCustomChanges] = useState({
     electricityReduction: 0,
     foodHabit: '',
@@ -18,7 +20,8 @@ export default function Simulator() {
   useEffect(() => {
     simulatorAPI.getScenarios()
       .then(({ data }) => setScenarios(data))
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setScenariosLoading(false));
   }, []);
 
   const runSimulation = async (changes, name) => {
@@ -55,7 +58,7 @@ export default function Simulator() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       
       {/* Page Header */}
       <div>
@@ -77,7 +80,11 @@ export default function Simulator() {
               <FiCpu className="text-eco-500" /> Decarbonization Presets
             </h3>
             <div className="grid grid-cols-1 gap-2.5">
-              {scenarios.map((s) => (
+              {scenariosLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="skeleton h-16 rounded-2xl" />
+                ))
+              ) : scenarios.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => runSimulation(s.changes, s.name)}

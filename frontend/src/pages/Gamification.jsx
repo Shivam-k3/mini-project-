@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { gamificationAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { GamificationSkeleton } from '../components/Skeleton';
 import { FiAward, FiZap, FiCheck, FiActivity } from 'react-icons/fi';
 
 export default function Gamification() {
@@ -33,16 +34,10 @@ export default function Gamification() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-eco-500 border-t-transparent" />
-      </div>
-    );
-  }
+  if (loading) return <GamificationSkeleton />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       
       {/* Header */}
       <div>

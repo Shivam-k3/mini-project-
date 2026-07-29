@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
-import { FiLock, FiEye, FiEyeOff, FiFeather } from 'react-icons/fi';
+import { FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function ChangePassword() {
@@ -35,8 +35,8 @@ export default function ChangePassword() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-eco-600 flex items-center justify-center">
-            <FiFeather size={18} className="text-white" />
+          <div className="w-10 h-10 flex items-center justify-center">
+            <img src="/leaf.svg" alt="EcoGuardian AI" className="w-9 h-9" />
           </div>
           <div>
             <p className="font-display font-black text-lg text-gray-900 dark:text-white leading-none">EcoGuardian</p>

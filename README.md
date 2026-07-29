@@ -37,6 +37,12 @@
 | 18 | **In-Memory DB Fallback** | DevOps | ✅ Production | `mongodb-memory-server`: zero-setup development; auto-seeding of demo accounts on every start |
 | 19 | **Eco-Themed UI** | UI | ✅ Production | Tailwind CSS: gradient sidebar, green-tinted glass cards, animated stat cards, green scrollbar, responsive grid |
 | 20 | **Walk-Forward Evaluation** | ML | ✅ Verified | Sliding window validation (50 users × 60 days); XGBoost achieves 5.45 kg MAE (-11.8% vs naive mean) |
+| 21 | **Animated Landing Page** | UI | ✅ Production | 3D Earth (R3F shader), tsParticles background, GSAP scroll story, animated counters, glow CTA buttons |
+| 22 | **Page Transitions** | UI | ✅ Production | Framer Motion AnimatePresence wrap on all protected routes (fade + scale exit/enter) |
+| 23 | **Skeleton Loading** | UI | ✅ Production | 10 skeleton variants (Dashboard, Gamification, ExplainableAI, Admin, Card, Chart, Table, Badge, Leaderboard) |
+| 24 | **Rate Limiting** | DevOps | ✅ Production | 6 tiered rate limiters (login: 5/15m, prediction: 30/h, AI: 20/day, simulation: 50/day, report: 10/day, submission: 1/10s) |
+| 25 | **Custom Brand Logo** | UI | ✅ Production | Circular emblem (globe + human profile + circuit nodes + leaf), SVG with full typography + tagline |
+| 26 | **Typewriter Animation** | UI | ✅ Production | Character-by-character reveal of "EcoGuardian AI" on login screen with blinking cursor |
 
 **Legend:** ✅ Production = fully implemented and tested | ✅ Verified = mathematically verified | ✅ New = added in latest update | ✅ Fixed = bug resolved
 
@@ -244,6 +250,15 @@ User selects preset/custom → Fetch latest entry (baseline)
 | react-icons | 5.4.0 | Feather icon set for UI elements |
 | react-hot-toast | 2.4.1 | Toast notification system |
 | axios | 1.7.9 | HTTP client with interceptor-based auth token injection |
+| framer-motion | 12.43.0 | Animation library (page transitions, spring counters, hover effects, scroll observers) |
+| three | 0.160.0 | 3D WebGL engine (procedural Earth shader, particles, orbital controls) |
+| @react-three/fiber | 8.17.14 | React renderer for three.js (Canvas, useFrame, R3F scene graph) |
+| @react-three/drei | 9.114.4 | R3F utilities (OrbitControls) |
+| gsap | 3.15.0 | High-performance animation (ScrollTrigger timeline for scroll story) |
+| @tsparticles/react | 3.0.0 | Particle system React bindings (eco-colored background particles with link lines) |
+| @tsparticles/slim | 3.9.1 | Lightweight particle preset (shape-circle, move-base, interaction-links) |
+| lenis | 1.3.25 | Smooth scroll engine (integrated with ScrollStory) |
+| lottie-react | 2.4.1 | Lottie animation player (inline loading + success checkmark animations) |
 
 ### 6.2 Backend
 
@@ -478,7 +493,49 @@ Where $E$ = daily total emissions (kg CO₂) and $S$ = current streak length.
 | `week_streak` | Achieve 7-day streak |
 | `eco_warrior` | Earn 500+ Green Points |
 
-### 7.6 Evaluation Methodology (Walk-Forward Validation)
+### 7.6 Animation & Visual System
+
+The landing page employs a multi-layered animation stack for an immersive experience:
+
+**3D Digital Twin Earth (`EarthCanvas.jsx`):**
+- Procedural shader sphere with procedural continent rendering (sin/cos-based continent masks)
+- 24 sensor nodes positioned on sphere surface via uniform random spherical coordinates
+- 2 orbital pulse rings with opacity oscillation (desynchronized via phase offset)
+- 12 Bézier curve connection lines between surface and outer nodes
+- 800 orbital particles in random spherical shells
+- Auto-rotating camera via OrbitControls with constrained polar angles
+- React.lazy-loaded (~844 KB) with Suspense + ErrorBoundary
+
+**Particle Background (`ParticlesBackground.jsx`):**
+- tsParticles v3 with `initParticlesEngine()` async initialization
+- Eco-colored particles (#22c55e, #34d399, #10b981) with link lines
+- Configurable particle count, size, opacity, and animation speed
+- React.lazy-loaded (~150 KB)
+
+**Scroll Story (`ScrollStory.jsx`):**
+- GSAP 3.15 + ScrollTrigger plugin for scroll-driven animation
+- 4-step timeline: carbon tracking → forecasting → simulation → action
+- Each step reveals icon + heading + description with opacity/translateY
+- React.lazy-loaded (~117 KB)
+
+**Page Transitions (`PageTransition.jsx`):**
+- Framer Motion AnimatePresence wrapping all protected routes
+- Combined exit (fade + scale 0.95, 0.2s) and enter (fade + scale 1, 0.3s) animation
+- Each route keyed by `location.pathname` for reliable exit detection
+
+**Micro-Interactions:**
+- `AnimatedCard.jsx`: staggered children via framer-motion `staggerChildren` + hover lift
+- `AnimatedCounter.jsx`: framer-motion `useSpring` (stiffness 50, damping 20) with `useMotionValueEvent` binding
+- `GlowButton.jsx`: CSS `@keyframes pulse-glow` border animation + JS ripple effect (cloneNode + removeChild)
+- `Typewriter` (login page): `setInterval`-based character reveal at 65ms/char with blinking cursor
+
+**Bundle Strategy:**
+- Heavy 3D/particle/GSAP components use `React.lazy()` with `<Suspense fallback={null}>`
+- Each lazy chunk produced by Vite's automatic code-splitting of dynamic imports
+- EarthCanvas (844 KB), ParticlesBackground (150 KB), ScrollStory (117 KB) load asynchronously
+- Main bundle: ~742 KB (down from ~1.8 MB without lazy splitting)
+
+### 7.7 Evaluation Methodology (Walk-Forward Validation)
 
 Standard train-test splitting is inappropriate for time series data because it leaks future information into the training set. Instead, we employ **walk-forward validation** (also known as time series cross-validation):
 
@@ -693,9 +750,9 @@ The data-aware tier system improves performance by 12.3% because it prevents the
 
 | Metric | Value |
 |---|---|
-| Frontend build size (CSS) | 73.6 KB (gzip: 12.6 KB) |
-| Frontend build size (JS) | 588 KB (gzip: 181 KB) |
-| Frontend build time | ~7.6 seconds |
+| Frontend build size (CSS) | 75.3 KB (gzip: 12.9 KB) |
+| Frontend build size (JS) | 742 KB + 844 KB (EarthCanvas lazy) + 150 KB (ParticlesBackground lazy) + 117 KB (ScrollStory lazy) — gzip: 231 KB + 228 KB + 43 KB + 47 KB |
+| Frontend build time | ~16–24 seconds (with three.js/R3F code-split chunks) |
 | Backend startup time (with in-memory DB) | ~15 seconds |
 | ML model training time (5 entries) | ~0.8 seconds |
 | ML model training time (60 entries) | ~1.2 seconds |
@@ -1012,7 +1069,8 @@ ecoguardian-ai/
 │   │   └── faculty.js                # Multi-tenant: department analytics, participation monitoring
 │   │
 │   ├── middleware/
-│   │   └── auth.js                   # JWT verification + role-based middleware
+│   │   ├── auth.js                   # JWT verification + role-based middleware
+│   │   └── rateLimit.js              # 6 tiered rate limiters (login, prediction, AI, simulation, report, submission)
 │   │
 │   ├── utils/
 │   │   ├── emissionFactors.js        # CO₂ calculation engine + Digital Twin simulation
@@ -1030,14 +1088,25 @@ ecoguardian-ai/
 │       │   ├── Layout.jsx            # Sidebar + header shell (eco-themed)
 │       │   ├── StatCard.jsx          # Animated metric cards with gradient backgrounds
 │       │   ├── ProtectedRoute.jsx    # Auth gate + role-based access control
-│       │   └── Charts.jsx            # Chart.js wrappers (pie, line, comparison bar)
+│       │   ├── Charts.jsx            # Chart.js wrappers (pie, line, comparison bar)
+│       │   ├── EarthCanvas.jsx       # 3D R3F Earth (shader sphere, 24 sensor nodes, orbital rings, 800 particles)
+│       │   ├── ParticlesBackground.jsx # tsParticles eco-themed background with link lines
+│       │   ├── ScrollStory.jsx       # GSAP ScrollTrigger 4-step timeline
+│       │   ├── PageTransition.jsx    # Framer Motion AnimatePresence route transitions
+│       │   ├── AnimatedCard.jsx      # Scroll-triggered staggered cards with hover lift
+│       │   ├── AnimatedCounter.jsx   # Spring-animated number counter on scroll
+│       │   ├── GlowButton.jsx        # Pulse glow border + ripple CTA button
+│       │   ├── LottieAnimation.jsx   # Inline Lottie loading + checkmark animations
+│       │   ├── ErrorBoundary.jsx     # React class component render error catcher
+│       │   └── Skeleton.jsx          # 10 loading skeleton variants (Dashboard, Gamification, etc.)
 │       │
 │       ├── context/
 │       │   ├── AuthContext.jsx        # User state, JWT management, login/logout
 │       │   └── ThemeContext.jsx       # Dark/light mode toggle with persistence
 │       │
-│       ├── pages/                    # 14 route-level page components
-│       │   ├── Login.jsx             # Email or userId login form
+│       ├── pages/                    # 15 route-level page components
+│       │   ├── Landing.jsx           # Animated landing page (3D Earth, particles, scroll story, bento grid, glow CTAs)
+│       │   ├── Login.jsx             # Email or userId login form with typewriter logo
 │       │   ├── ChangePassword.jsx    # First-login forced password reset
 │       │   ├── Dashboard.jsx         # Main dashboard (stats, charts, predictions, SHAP)
 │       │   ├── Calculator.jsx        # Daily emission logging form (7 categories)
@@ -1072,6 +1141,12 @@ ecoguardian-ai/
 │   └── TECHNICAL.md                  # Technical architecture reference
 │
 ├── .env.example                      # Environment variable template
+│
+├── frontend/
+│   └── public/
+│       ├── leaf.svg                   # Favicon / logo mark (circular emblem: globe + human profile + circuit + leaf)
+│       └── logo.svg                   # Full brand logo (emblem + "EcoGuardian AI" typography + tagline)
+│
 └── README.md                         # This file
 ```
 

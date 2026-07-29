@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { superAdminAPI, collegeAdminAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { AdminSkeleton } from '../components/Skeleton';
 import { 
   FiPlus, FiUsers, FiSliders, FiShield, FiFileText, FiLayers, FiAlertCircle, 
   FiRefreshCw, FiTrash2, FiUserCheck, FiUserX, FiUpload, FiDownload, FiCheck, FiX, FiCheckCircle
@@ -127,7 +128,7 @@ function SuperAdminWorkspace() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white font-Outfit">Super Admin Console</h1>
@@ -162,11 +163,7 @@ function SuperAdminWorkspace() {
         </button>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <span className="w-8 h-8 rounded-full border-2 border-eco-200 border-t-eco-600 animate-spin" />
-        </div>
-      ) : activeTab === 'colleges' ? (
+      {loading ? <AdminSkeleton /> : activeTab === 'colleges' ? (
         <div className="card overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
@@ -581,7 +578,7 @@ function CollegeAdminWorkspace() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white font-Outfit">Campus Administration</h1>
@@ -661,11 +658,7 @@ function CollegeAdminWorkspace() {
             </select>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <span className="w-8 h-8 rounded-full border-2 border-eco-200 border-t-eco-600 animate-spin" />
-            </div>
-          ) : (
+          {loading ? <AdminSkeleton /> : (
             <div className="card overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
