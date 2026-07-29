@@ -1,0 +1,71 @@
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://172.20.155.76:8000
+Press CTRL+C to quit
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 180-238-873
+127.0.0.1 - - [28/Jul/2026 20:31:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:32:49] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:32:49] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:32:50] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:32:50] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:10] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:10] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:10] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:10] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:17] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:17] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:17] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:33:17] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:10] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:10] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:10] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:10] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:18] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:18] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:18] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:34:18] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:35:09] "POST /simulate HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:35:41] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:35:41] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:35:41] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:35:41] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:50:10] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:50:10] "POST /explain HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:50:10] "POST /predict HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 20:50:10] "POST /explain HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\Asus\\sem 3 mini\\ml-service\\predictor.py', reloading
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 180-238-873
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\__init__.py', reloading
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 180-238-873
+ * Detected change in 'C:\\Users\\Asus\\sem 3 mini\\ml-service\\shap_explainer.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\__init__.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\explainers\\__init__.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\explainers\\_tree.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\utils\\__init__.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\utils\\_general.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\packaging\\__init__.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\explainers\\_explainer.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\utils\\_exceptions.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\dtypes\\missing.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\_explanation.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\explainers\\other\\__init__.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\explainers\\other\\_ubjson.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\_serializable.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\utils\\transformers.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\shap\\utils\\_show_progress.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\_version.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\generic.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\arraylike.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\series.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\_config\\__init__.py', reloading
+ * Detected change in 'C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\_config\\config.py', reloading
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 180-238-873
