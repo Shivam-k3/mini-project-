@@ -26,10 +26,11 @@ import joblib
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# The 8 feature columns the model expects, in exact order
+# The 9 feature columns the model expects, in exact order
 FEATURE_COLS = [
     "transport_total", "electricity", "water", "food_val",
     "shopping_val", "waste_val", "fuel_total", "day_of_week",
+    "car_occupants",
 ]
 
 # Mapping from categorical user inputs to numeric feature values
@@ -61,14 +62,23 @@ def _get_model_paths(scope, scope_id):
 # Feature extraction
 # ---------------------------------------------------------------------------
 def _extract_features(entry):
-    """Convert a raw carbon entry dict into an OrderedDict of 8 numeric features.
+    """Convert a raw carbon entry dict into an OrderedDict of 9 numeric features.
 
     The order matches FEATURE_COLS exactly so array indexing is always correct.
     """
     transport = entry.get("transport", {})
     fuel = entry.get("fuel", {})
+    if isinstance(transport, dict):
+        transport_km = sum(v for k, v in transport.items() if k != "carOccupants")
+        try:
+            occupants = max(1, min(8, int(float(transport.get("carOccupants", 1)))))
+        except (TypeError, ValueError):
+            occupants = 1
+    else:
+        transport_km = 0
+        occupants = 1
     return OrderedDict([
-        ("transport_total", sum(transport.values()) if isinstance(transport, dict) else 0),
+        ("transport_total", transport_km),
         ("electricity", entry.get("electricity", 0)),
         ("water", entry.get("water", 0)),
         ("food_val", FOOD_MAP.get(entry.get("foodHabit", "nonVegetarian"), 7.2)),
@@ -76,6 +86,7 @@ def _extract_features(entry):
         ("waste_val", WASTE_MAP.get(entry.get("wasteGeneration", "medium"), 1.0)),
         ("fuel_total", sum(fuel.values()) if isinstance(fuel, dict) else 0),
         ("day_of_week", pd.Timestamp(entry.get("date", "2024-01-01")).dayofweek),
+        ("car_occupants", occupants),
     ])
 
 
@@ -107,6 +118,9 @@ def _load_model(scope, scope_id):
         if os.path.exists(meta_path):
             with open(meta_path) as f:
                 meta = json.load(f)
+        # Stale model guard: feature count changed → force retrain
+        if meta.get("n_features") != len(FEATURE_COLS):
+            return None, None, {}
         return artifacts["model"], artifacts["scaler"], meta
     except Exception:
         return None, None, {}
@@ -203,7 +217,7 @@ def train_entity_model(scope, scope_id, history):
         "n_samples": len(y),
         "n_features": len(FEATURE_COLS),
         "metrics": metrics,
-        "version": "2.0.0",
+        "version": "2.1.0",
         "scope": scope,
         "scope_id": scope_id,
     }
@@ -353,7 +367,7 @@ def train_and_predict(history, scope="user", scope_id=None):
         "n_samples": len(y),
         "n_features": len(FEATURE_COLS),
         "metrics": metrics,
-        "version": "2.0.0",
+        "version": "2.1.0",
         "scope": scope,
         "scope_id": scope_id,
     }

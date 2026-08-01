@@ -179,6 +179,11 @@ def simulate():
         if changes.get("replaceMode"):
             modified["transport"][changes["replaceMode"]] = 0
 
+    # Carpool / occupancy change: apply occupants to the vehicle trips
+    if changes.get("carOccupants"):
+        modified["transport"] = dict(baseline.get("transport", {}))
+        modified["transport"]["carOccupants"] = max(1, min(8, int(float(changes["carOccupants"]))))
+
     if changes.get("electricityReduction"):
         modified["electricity"] = baseline.get("electricity", 0) * (1 - changes["electricityReduction"] / 100)
 

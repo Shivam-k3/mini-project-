@@ -19,7 +19,7 @@ export default function Assistant() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hello! I'm EcoGuardian AI, your personal sustainability advisor. I analyze your carbon entries, commute metrics, and utility bills to give you tailored recommendations.\n\nHow can I help you reduce your carbon footprint today?",
+      content: "Hello! I'm EcoGuardian, your personal sustainability advisor. I analyze your carbon entries, commute metrics, and utility bills to give you tailored recommendations.\n\nHow can I help you reduce your carbon footprint today?",
       time: '12:00 PM'
     },
   ]);
@@ -175,7 +175,7 @@ export default function Assistant() {
               <input
                 type="text"
                 className="input-field flex-1 text-xs"
-                placeholder="Ask EcoGuardian AI for Decarbonization blueprints, nutritional guides..."
+                placeholder="Ask EcoGuardian for Decarbonization blueprints, nutritional guides..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !loading && sendMessage()}

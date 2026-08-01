@@ -36,7 +36,7 @@ export default function ChangePassword() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 flex items-center justify-center">
-            <img src="/leaf.svg" alt="EcoGuardian AI" className="w-9 h-9" />
+            <img src="/leaf.svg" alt="EcoGuardian" className="w-9 h-9" />
           </div>
           <div>
             <p className="font-display font-black text-lg text-gray-900 dark:text-white leading-none">EcoGuardian</p>

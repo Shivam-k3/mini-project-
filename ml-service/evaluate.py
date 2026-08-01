@@ -38,6 +38,7 @@ FUEL_TYPES = list(EMISSION_FACTORS["fuel"].keys())
 FEATURE_COLS = [
     "transport_total", "electricity", "water", "food_val",
     "shopping_val", "waste_val", "fuel_total", "day_of_week",
+    "car_occupants",
 ]
 
 FOOD_MAP = EMISSION_FACTORS["food"]
@@ -51,6 +52,9 @@ def _generate_day(day_offset, base_emission=20.0, trend=0.0, noise=2.0):
     for mode in TRANSPORT_MODES:
         if random.random() < 0.5:
             transport[mode] = round(random.uniform(0, 25), 1)
+
+    occupants = 1 if random.random() < 0.55 else random.randint(2, 6)
+    transport["carOccupants"] = occupants
 
     electricity = round(random.uniform(3, 18), 1)
     water = round(random.uniform(40, 250), 0)
@@ -79,7 +83,7 @@ def _generate_day(day_offset, base_emission=20.0, trend=0.0, noise=2.0):
     noisy = max(1.0, noisy)
 
     features = OrderedDict([
-        ("transport_total", sum(transport.values())),
+        ("transport_total", sum(v for k, v in transport.items() if k != "carOccupants")),
         ("electricity", electricity),
         ("water", water),
         ("food_val", FOOD_MAP[food]),
@@ -87,6 +91,7 @@ def _generate_day(day_offset, base_emission=20.0, trend=0.0, noise=2.0):
         ("waste_val", WASTE_MAP[waste]),
         ("fuel_total", sum(fuel.values())),
         ("day_of_week", day_offset % 7),
+        ("car_occupants", occupants),
     ])
     return features, round(noisy, 2)
 

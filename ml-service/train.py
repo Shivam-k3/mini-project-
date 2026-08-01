@@ -33,6 +33,7 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 FEATURE_COLS = [
     "transport_total", "electricity", "water", "food_val",
     "shopping_val", "waste_val", "fuel_total", "day_of_week",
+    "car_occupants",
 ]
 
 FOOD_OPTIONS = list(EMISSION_FACTORS["food"].keys())
@@ -51,6 +52,10 @@ def generate_synthetic_sample():
     for mode in TRANSPORT_MODES:
         if random.random() < 0.6:
             transport[mode] = round(random.uniform(0, 30), 1)
+
+    # Occupancy-aware: most trips solo, some shared (carpool / family)
+    occupants = 1 if random.random() < 0.55 else random.randint(2, 6)
+    transport["carOccupants"] = occupants
 
     electricity = round(random.uniform(2, 20), 1)
     water = round(random.uniform(30, 300), 0)
@@ -80,7 +85,7 @@ def generate_synthetic_sample():
     target = result["total"] + round(random.gauss(0, result["total"] * 0.05), 2)
 
     features = OrderedDict([
-        ("transport_total", sum(transport.values())),
+        ("transport_total", sum(v for k, v in transport.items() if k != "carOccupants")),
         ("electricity", electricity),
         ("water", water),
         ("food_val", FOOD_MAP[food_habit]),
@@ -88,6 +93,7 @@ def generate_synthetic_sample():
         ("waste_val", WASTE_MAP[waste]),
         ("fuel_total", sum(fuel.values())),
         ("day_of_week", random.randint(0, 6)),
+        ("car_occupants", occupants),
     ])
 
     return features, max(0, target)
@@ -247,7 +253,7 @@ def main():
         "n_features": len(FEATURE_COLS),
         "metrics": metrics,
         "feature_importance": importance,
-        "version": "2.0.0",
+        "version": "2.1.0",
         "scope": args.scope,
         "scope_id": args.scope_id,
         "training_date": pd.Timestamp.now().isoformat(),

@@ -35,6 +35,11 @@ const EMISSION_FACTORS = {
   },
 };
 
+function getVehicleOccupants(transport) {
+  const raw = Number(transport?.carOccupants);
+  return Math.max(1, Math.min(8, Number.isFinite(raw) && raw >= 1 ? Math.round(raw) : 1));
+}
+
 function calculateEmissions(data) {
   const breakdown = {
     transport: 0,
@@ -45,42 +50,57 @@ function calculateEmissions(data) {
     waste: 0,
     fuel: 0,
   };
+  const householdBreakdown = { ...breakdown };
 
-  // Transport
+  // Transport — occupancy-aware allocation:
+  // car/EV emissions are split equally among occupants (personal share),
+  // while the raw trip total is preserved for household accounting.
+  // Bus/metro/flight factors are already per-passenger (DEFRA).
   if (data.transport) {
+    const occupants = getVehicleOccupants(data.transport);
     Object.entries(data.transport).forEach(([mode, km]) => {
-      if (EMISSION_FACTORS.transport[mode] !== undefined) {
-        breakdown.transport += km * EMISSION_FACTORS.transport[mode];
-      }
+      const factor = EMISSION_FACTORS.transport[mode];
+      if (factor === undefined) return; // skips carOccupants metadata key
+      const tripTotal = km * factor;
+      householdBreakdown.transport += tripTotal;
+      breakdown.transport += (mode === 'car' || mode === 'ev')
+        ? tripTotal / occupants
+        : tripTotal;
     });
   }
 
   // Electricity
   if (data.electricity) {
     breakdown.electricity = data.electricity * EMISSION_FACTORS.electricity;
+    householdBreakdown.electricity = breakdown.electricity;
     if (data.solarPanels) {
       breakdown.electricity *= (1 - EMISSION_FACTORS.solar.reductionFactor);
+      householdBreakdown.electricity = breakdown.electricity;
     }
   }
 
   // Water
   if (data.water) {
     breakdown.water = data.water * EMISSION_FACTORS.water;
+    householdBreakdown.water = breakdown.water;
   }
 
   // Food
   if (data.foodHabit && EMISSION_FACTORS.food[data.foodHabit]) {
     breakdown.food = EMISSION_FACTORS.food[data.foodHabit];
+    householdBreakdown.food = breakdown.food;
   }
 
   // Shopping
   if (data.shoppingFrequency && EMISSION_FACTORS.shopping[data.shoppingFrequency]) {
     breakdown.shopping = EMISSION_FACTORS.shopping[data.shoppingFrequency];
+    householdBreakdown.shopping = breakdown.shopping;
   }
 
   // Waste
   if (data.wasteGeneration && EMISSION_FACTORS.waste[data.wasteGeneration]) {
     breakdown.waste = EMISSION_FACTORS.waste[data.wasteGeneration];
+    householdBreakdown.waste = breakdown.waste;
   }
 
   // Fuel
@@ -88,16 +108,23 @@ function calculateEmissions(data) {
     Object.entries(data.fuel).forEach(([type, liters]) => {
       if (EMISSION_FACTORS.fuel[type] !== undefined) {
         breakdown.fuel += liters * EMISSION_FACTORS.fuel[type];
+        householdBreakdown.fuel = breakdown.fuel;
       }
     });
   }
 
-  const total = Object.values(breakdown).reduce((sum, val) => sum + val, 0);
+  const round2 = (v) => Math.round(v * 100) / 100;
+  const total = round2(Object.values(breakdown).reduce((sum, val) => sum + val, 0));
+  const householdTotal = round2(Object.values(householdBreakdown).reduce((sum, val) => sum + val, 0));
 
   return {
-    total: Math.round(total * 100) / 100,
+    total,
     breakdown: Object.fromEntries(
-      Object.entries(breakdown).map(([k, v]) => [k, Math.round(v * 100) / 100])
+      Object.entries(breakdown).map(([k, v]) => [k, round2(v)])
+    ),
+    householdTotal,
+    householdBreakdown: Object.fromEntries(
+      Object.entries(householdBreakdown).map(([k, v]) => [k, round2(v)])
     ),
   };
 }
@@ -111,6 +138,12 @@ function simulateScenario(baseline, changes) {
     if (changes.replaceMode) {
       modified.transport[changes.replaceMode] = 0;
     }
+  }
+
+  // Carpool / occupancy change: adjust occupants on the vehicle trips
+  if (changes.carOccupants) {
+    modified.transport = { ...(baseline.transport || {}) };
+    modified.transport.carOccupants = getVehicleOccupants({ carOccupants: changes.carOccupants });
   }
 
   if (changes.electricityReduction) {
@@ -157,4 +190,5 @@ module.exports = {
   calculateEmissions,
   simulateScenario,
   calculateEcoScore,
+  getVehicleOccupants,
 };

@@ -1,4 +1,4 @@
-# 🌿 EcoGuardian AI
+# 🌿 EcoGuardian
 
 **AI-Powered Carbon Footprint Management Platform for College Campuses**  
 *Supporting UN SDG 13: Climate Action*
@@ -19,10 +19,10 @@
 |---|---|---|---|---|
 | 1 | **Carbon Calculator** | Core | ✅ Production | 7-category input → `calculateEmissions()` → total + breakdown in kg CO₂ |
 | 2 | **Dashboard & Analytics** | Core | ✅ Production | Daily/weekly/monthly totals, pie charts, line trends, category breakdown |
-| 3 | **XGBoost ML Predictions** | ML | ✅ Production | `predictor.py`: 8 features, scoped models (`carbon_model_{scope}_{id}.pkl`), 200 estimators |
+| 3 | **XGBoost ML Predictions** | ML | ✅ Production | `predictor.py`: 9 features, scoped models (`carbon_model_{scope}_{id}.pkl`), 200 estimators |
 | 4 | **Data-Aware Prediction Tiers** | ML | ✅ Production | <10 entries → rolling avg, 10–30 → hybrid, 30+ → full XGBoost (prevents overfitting) |
 | 5 | **SHAP Explainable AI** | ML | ✅ Production | `shap_explainer.py`: TreeExplainer + composition analysis; returns contributions, topFactors, modelFeatureImportance |
-| 6 | **Digital Twin Simulator** | Simulation | ✅ Production | 6 presets (car→metro, EV, solar, vegetarian, bus, electricity cut) + custom sliders; yearly savings, trees equivalent, impact score |
+| 6 | **Digital Twin Simulator** | Simulation | ✅ Production | 8 presets (car→metro, EV, solar, vegetarian, bus, electricity cut, carpool, school bus) + custom sliders (incl. carpool occupants); yearly savings, trees equivalent, impact score |
 | 7 | **Dual Calculation (JS + Python)** | Simulation | ✅ Verified | `emissionFactors.js` ↔ `emission_utils.py`: identical factors and formulas; tested matching outputs |
 | 8 | **AI Sustainability Assistant** | AI | ✅ Production | Gemini 2.0 Flash / GPT-4o-mini + context-aware fallback (user emissions, eco score, streak) |
 | 9 | **Multi-Tenant Roles** | Auth | ✅ Production | JWT + bcrypt; 4 roles: `super_admin` → `college_admin` → `faculty` → `student`; middleware-enforced ACL |
@@ -40,9 +40,10 @@
 | 21 | **Animated Landing Page** | UI | ✅ Production | 3D Earth (R3F shader), tsParticles background, GSAP scroll story, animated counters, glow CTA buttons |
 | 22 | **Page Transitions** | UI | ✅ Production | Framer Motion AnimatePresence wrap on all protected routes (fade + scale exit/enter) |
 | 23 | **Skeleton Loading** | UI | ✅ Production | 10 skeleton variants (Dashboard, Gamification, ExplainableAI, Admin, Card, Chart, Table, Badge, Leaderboard) |
-| 24 | **Rate Limiting** | DevOps | ✅ Production | 6 tiered rate limiters (login: 5/15m, prediction: 30/h, AI: 20/day, simulation: 50/day, report: 10/day, submission: 1/10s) |
+| 24 | **Rate Limiting** | DevOps | ✅ Production | 6 tiered limiters: login (10 failed/15m per account+IP, successful logins exempt), prediction (30/h), AI (20/day), simulation (50/day), report (10/day), submission (1/10s, write methods only) |
 | 25 | **Custom Brand Logo** | UI | ✅ Production | Circular emblem (globe + human profile + circuit nodes + leaf), SVG with full typography + tagline |
-| 26 | **Typewriter Animation** | UI | ✅ Production | Character-by-character reveal of "EcoGuardian AI" on login screen with blinking cursor |
+| 26 | **Typewriter Animation** | UI | ✅ Production | Character-by-character reveal of "EcoGuardian" on login screen with blinking cursor |
+| 27 | **Occupancy-Aware Carbon Allocation** | Core | ✅ New | Personal vs household split: car/EV emissions ÷ occupants (1–8, default 1); both values stored per entry; hybrid allocation (solo = 100%, shared = equal split) |
 
 **Legend:** ✅ Production = fully implemented and tested | ✅ Verified = mathematically verified | ✅ New = added in latest update | ✅ Fixed = bug resolved
 
@@ -71,7 +72,7 @@
 
 ## 1. Abstract
 
-EcoGuardian AI is a full-stack, multi-tenant carbon footprint management platform designed for college campus deployment. The system enables users to log daily lifestyle activities across seven emission categories (transport, electricity, water, food, shopping, waste, fuel), compute CO₂ equivalents using standardized emission factors, forecast future emissions using an XGBoost regressor with data-aware fallback mechanisms, and interpret predictions through SHAP (SHapley Additive exPlanations). A Digital Twin simulator allows users to model lifestyle interventions before implementation, while a gamification framework sustains engagement through eco-scores, streaks, badges, and challenges. The platform implements a four-tier role hierarchy (Super Admin → College Admin → Faculty → Student) with scoped machine learning model persistence, ensuring each user, department, and college maintains isolated prediction models. Evaluation using walk-forward validation on synthetic data (50 users × 60 days) demonstrates that the XGBoost model achieves 11.8% lower Mean Absolute Error (5.45 kg CO₂) compared to naive averaging baselines (6.18 kg CO₂) when trained on 30+ days of data. The system requires zero external database setup through an automatic in-memory MongoDB fallback, making it immediately deployable for educational and research purposes.
+EcoGuardian is a full-stack, multi-tenant carbon footprint management platform designed for college campus deployment. The system enables users to log daily lifestyle activities across seven emission categories (transport, electricity, water, food, shopping, waste, fuel), compute CO₂ equivalents using standardized emission factors, forecast future emissions using an XGBoost regressor with data-aware fallback mechanisms, and interpret predictions through SHAP (SHapley Additive exPlanations). A Digital Twin simulator allows users to model lifestyle interventions before implementation, while a gamification framework sustains engagement through eco-scores, streaks, badges, and challenges. The platform implements a four-tier role hierarchy (Super Admin → College Admin → Faculty → Student) with scoped machine learning model persistence, ensuring each user, department, and college maintains isolated prediction models. Evaluation using walk-forward validation on synthetic data (50 users × 60 days) demonstrates that the XGBoost model achieves 11.8% lower Mean Absolute Error (5.45 kg CO₂) compared to naive averaging baselines (6.18 kg CO₂) when trained on 30+ days of data. The system requires zero external database setup through an automatic in-memory MongoDB fallback, making it immediately deployable for educational and research purposes.
 
 ---
 
@@ -137,7 +138,7 @@ Machine learning approaches for carbon emission prediction have been explored in
 
 ### 4.3 Gamification for Behavior Change
 
-Hamari et al. (2017) [7] conducted a meta-analysis of gamification studies, finding that gamification produces positive effects on behavioral outcomes in 79% of reviewed studies, with the strongest effects observed when gamification includes clear goal-setting, progress feedback, and social comparison elements. EcoGuardian AI incorporates all three through Eco Scores, streaks, and department leaderboards.
+Hamari et al. (2017) [7] conducted a meta-analysis of gamification studies, finding that gamification produces positive effects on behavioral outcomes in 79% of reviewed studies, with the strongest effects observed when gamification includes clear goal-setting, progress feedback, and social comparison elements. EcoGuardian incorporates all three through Eco Scores, streaks, and department leaderboards.
 
 ### 4.4 The Gap
 
@@ -149,7 +150,7 @@ No existing platform combines all of the following in a single system:
 - Gamification (scores, streaks, badges, challenges, leaderboards)
 - Multi-tenant campus hierarchy with scoped ML models
 
-EcoGuardian AI fills this gap.
+EcoGuardian fills this gap.
 
 ---
 
@@ -346,7 +347,7 @@ XGBRegressor(
 
 #### 7.2.2 Feature Engineering
 
-Eight features are extracted from each carbon entry:
+Nine features are extracted from each carbon entry:
 
 | Feature | Source | Type | Range | Description |
 |---|---|---|---|---|
@@ -358,6 +359,7 @@ Eight features are extracted from each carbon entry:
 | `waste_val` | Mapped from `wasteGeneration` | Float | 0.3–2.5 | CO₂ factor of waste generation |
 | `fuel_total` | Sum of all fuel types | Float | 0–10+ L | Total fuel consumed |
 | `day_of_week` | Derived from `entry.date` | Integer (0–6) | 0–6 | Monday=0, Sunday=6 |
+| `car_occupants` | `entry.transport.carOccupants` | Integer | 1–8 | Vehicle occupancy (1 = solo); signals carpooling patterns |
 
 **Categorical mappings:**
 ```python
@@ -454,6 +456,7 @@ The Digital Twin creates a counterfactual emission scenario for comparison with 
 
 2. **Scenario Generation:** A modified copy is created by applying change operations:
    - **Transport substitution:** `transport[new_mode] = distance`, `transport[old_mode] = 0`
+   - **Occupancy change (carpooling):** `transport.carOccupants = N` — car/EV emissions divided equally among N occupants
    - **Electricity scaling:** `electricity = baseline × (1 - reduction%/100)`
    - **Solar installation:** `electricity = baseline × 0.15` (85% reduction)
    - **Diet change:** `foodHabit = new_value`
@@ -466,6 +469,26 @@ The Digital Twin creates a counterfactual emission scenario for comparison with 
    - **Yearly savings (kg):** `reduction × 365`
    - **Trees equivalent:** `yearly_savings / 21` (average tree sequesters ~21 kg CO₂/year [10])
    - **Impact score:** `min(100, reduction_pct × 1.5)`
+
+#### 7.4.1 Occupancy-Aware Carbon Allocation (Personal vs Household)
+
+Each carbon entry stores **both** the personal share and the raw household total:
+
+```
+trip_total        = distance × emission_factor          (household value)
+personal_share    = trip_total / carOccupants           (stored as breakdown)
+```
+
+- **Solo trips** (occupants = 1, default) → 100% of vehicle emissions counted.
+- **Shared trips** (school run, carpool, family outing) → emissions split equally among occupants (`carOccupants`, clamped 1–8).
+- Only `car` and `EV` are split — bus/metro/flight factors are already per-passenger (DEFRA), bike is zero.
+- `totalEmissions` / `breakdown` = **personal** footprint (drives dashboard, ML training, gamification).
+- `householdTotal` / `householdBreakdown` = **raw pre-division** totals, stored for future household-level aggregation (recoverable without migration).
+- Old entries without `carOccupants` default to 1 — zero breakage.
+
+This makes the Digital Twin genuinely collaborative: switching from a solo car commute to a 4-person carpool reduces personal transport emissions by ~75%, and preset scenarios (4-Person Carpool, School Run → School Bus) quantify this per occupant.
+
+**Research contribution:** EcoGuardian introduces *occupant-aware carbon allocation* for shared transportation, enabling more accurate estimation of individual carbon footprints while supporting Digital Twin simulations of collaborative transport strategies such as carpooling and school buses — a novel framing for personal carbon accounting in campus settings.
 
 ### 7.5 Gamification Methodology
 
@@ -773,7 +796,7 @@ The emission calculation logic is implemented independently in both JavaScript a
 
 ### 10.3 Comparison with Existing Systems
 
-| Feature | EPA Calculator | Oroeco | JouleBug | EcoGuardian AI |
+| Feature | EPA Calculator | Oroeco | JouleBug | EcoGuardian |
 |---|---|---|---|---|
 | Daily tracking | ✗ | ✓ | ✓ | ✓ |
 | ML predictions | ✗ | ✗ | ✗ | ✓ (XGBoost) |
@@ -895,7 +918,7 @@ npm run dev
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/api/simulator/scenarios` | JWT | List 6 preset scenarios with IDs and descriptions |
+| GET | `/api/simulator/scenarios` | JWT | List 8 preset scenarios with IDs and descriptions |
 | POST | `/api/simulator/simulate` | JWT | Run simulation: fetches baseline, applies changes, returns comparison |
 | GET | `/api/simulator/history` | JWT | Last 20 simulations |
 
@@ -1110,7 +1133,7 @@ ecoguardian-ai/
 │       │   ├── ChangePassword.jsx    # First-login forced password reset
 │       │   ├── Dashboard.jsx         # Main dashboard (stats, charts, predictions, SHAP)
 │       │   ├── Calculator.jsx        # Daily emission logging form (7 categories)
-│       │   ├── Simulator.jsx         # Digital Twin (6 presets + custom sliders)
+│       │   ├── Simulator.jsx         # Digital Twin (8 presets + custom sliders incl. carpool)
 │       │   ├── Assistant.jsx         # AI chatbot conversation interface
 │       │   ├── Gamification.jsx      # Badges gallery, active challenges, leaderboard
 │       │   ├── ExplainableAI.jsx     # SHAP explanation hub with visual breakdown
@@ -1145,7 +1168,7 @@ ecoguardian-ai/
 ├── frontend/
 │   └── public/
 │       ├── leaf.svg                   # Favicon / logo mark (circular emblem: globe + human profile + circuit + leaf)
-│       └── logo.svg                   # Full brand logo (emblem + "EcoGuardian AI" typography + tagline)
+│       └── logo.svg                   # Full brand logo (emblem + "EcoGuardian" typography + tagline)
 │
 └── README.md                         # This file
 ```

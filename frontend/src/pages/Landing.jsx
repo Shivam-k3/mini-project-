@@ -41,7 +41,7 @@ export default function Landing() {
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-eco-400 to-ocean-500 flex items-center justify-center text-white text-lg">🌿</div>
           <div>
-            <h1 className="font-bold text-base text-gray-800 dark:text-white leading-tight">EcoGuardian AI</h1>
+            <h1 className="font-bold text-base text-gray-800 dark:text-white leading-tight">EcoGuardian</h1>
             <p className="text-[10px] text-eco-600 dark:text-eco-400 font-semibold uppercase tracking-wider">SDG 13 Platform</p>
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function Landing() {
                 Empowering Your Climate Action with <span className="bg-clip-text text-transparent bg-gradient-to-r from-eco-500 to-ocean-500">Explainable AI</span>
               </h2>
               <p className="text-lg text-gray-500 dark:text-gray-400 font-medium max-w-xl">
-                EcoGuardian AI is a premium SaaS carbon footprint management platform. Calculate, monitor, forecast, and simulate lifestyle impacts using advanced ML and SHAP Explanations.
+                EcoGuardian is a premium SaaS carbon footprint management platform. Calculate, monitor, forecast, and simulate lifestyle impacts using advanced ML and SHAP Explanations.
               </p>
               <div className="flex justify-start gap-4 pt-2">
                 {user ? (
@@ -139,7 +139,7 @@ export default function Landing() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="space-y-6">
             <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Directly Supporting UN SDG 13</h3>
-            <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium">United Nations Sustainable Development Goal 13 demands urgent action to combat climate change. EcoGuardian AI contributes by providing data, metrics, and tools to motivate personal decarbonization.</p>
+            <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium">United Nations Sustainable Development Goal 13 demands urgent action to combat climate change. EcoGuardian contributes by providing data, metrics, and tools to motivate personal decarbonization.</p>
             <div className="space-y-4">
               {[
                 { title: '13.1 Strengthen resilience and adaptive capacity', desc: 'Personalized calculations and predictive alerts raise immediate awareness of climate risks.' },
@@ -170,7 +170,7 @@ export default function Landing() {
           <h3 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">Ready to Monitor and Reduce Your Footprint?</h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto mt-4 font-medium leading-relaxed">Create a profile, access the dashboard, and begin optimizing your daily routines under SDG 13 guidelines.</p>
           <div className="mt-8">
-            <GlowButton onClick={() => window.location.href = user ? '/dashboard' : '/register'}>Launch EcoGuardian AI</GlowButton>
+            <GlowButton onClick={() => window.location.href = user ? '/dashboard' : '/register'}>Launch EcoGuardian</GlowButton>
           </div>
         </div>
       </section>
@@ -181,7 +181,7 @@ export default function Landing() {
           <div className="flex items-center gap-3">
             <span className="text-2xl">🌿</span>
             <div>
-              <p className="font-bold text-sm text-gray-800 dark:text-white leading-tight">EcoGuardian AI</p>
+              <p className="font-bold text-sm text-gray-800 dark:text-white leading-tight">EcoGuardian</p>
               <p className="text-[10px] text-gray-400">UN SDG 13 Climate Action Platform © 2026</p>
             </div>
           </div>

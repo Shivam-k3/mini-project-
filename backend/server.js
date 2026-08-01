@@ -26,12 +26,12 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', cred
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'EcoGuardian AI Backend', sdg: 'SDG 13 - Climate Action' });
+  res.json({ status: 'ok', service: 'EcoGuardian Backend', sdg: 'SDG 13 - Climate Action' });
 });
 
 app.get('/', (req, res) => {
   res.json({
-    message: 'Welcome to the EcoGuardian AI API Backend!',
+    message: 'Welcome to the EcoGuardian API Backend!',
     status: 'online',
     health: '/api/health',
     sdg: 'SDG 13: Climate Action'
@@ -56,5 +56,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`EcoGuardian AI Backend running on port ${PORT}`);
+  console.log(`EcoGuardian Backend running on port ${PORT}`);
 });

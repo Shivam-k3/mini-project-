@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { FiArrowLeft, FiArrowRight, FiCheckCircle } from 'react-icons/fi';
 
 const defaultForm = {
-  transport: { bike: 0, bus: 0, metro: 0, car: 0, ev: 0, flight: 0 },
+  transport: { bike: 0, bus: 0, metro: 0, car: 0, ev: 0, flight: 0, carOccupants: 1 },
   electricity: 10,
   water: 150,
   foodHabit: 'nonVegetarian',
@@ -35,6 +35,12 @@ export default function Calculator() {
   const [result, setResult] = useState(null);
 
   const updateTransport = (mode, value) => {
+    if (mode === 'carOccupants') {
+      const raw = Math.round(Number(value));
+      const occupants = Math.max(1, Math.min(8, Number.isFinite(raw) ? raw : 1));
+      setForm({ ...form, transport: { ...form.transport, carOccupants: occupants } });
+      return;
+    }
     setForm({ ...form, transport: { ...form.transport, [mode]: Math.max(0, Number(value)) } });
   };
 
@@ -44,9 +50,14 @@ export default function Calculator() {
 
   // Live footprint calculation for preview panel
   const calculateLiveEmissions = () => {
+    const occupants = form.transport.carOccupants || 1;
     let transportVal = 0;
+    let householdTransport = 0;
     Object.entries(form.transport).forEach(([m, v]) => {
-      transportVal += v * (FACTORS.transport[m] || 0);
+      const factor = FACTORS.transport[m] || 0;
+      if (!factor) return; // skips carOccupants metadata key
+      householdTransport += v * factor;
+      transportVal += (m === 'car' || m === 'ev') ? (v * factor) / occupants : v * factor;
     });
 
     let elecVal = form.electricity * FACTORS.electricity;
@@ -73,7 +84,9 @@ export default function Calculator() {
         shopping: Math.round(shopVal * 100) / 100,
         waste: Math.round(wasteVal * 100) / 100,
         fuel: Math.round(fuelVal * 100) / 100,
-      }
+      },
+      householdTransport: Math.round(householdTransport * 100) / 100,
+      occupants,
     };
   };
 
@@ -168,6 +181,38 @@ export default function Calculator() {
                   </div>
                 ))}
               </div>
+
+              {/* Occupancy-aware carpool input (only relevant when car/EV km > 0) */}
+              {(form.transport.car > 0 || form.transport.ev > 0) && (
+                <div className="p-4 rounded-2xl bg-eco-500/5 border border-eco-500/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 dark:text-white">🚗 Vehicle Occupants (incl. driver)</h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        Your personal share = vehicle emissions ÷ occupants. Shared trips are split fairly.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateTransport('carOccupants', Math.max(1, form.transport.carOccupants - 1))}
+                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black hover:bg-eco-500 hover:text-white transition-all"
+                      >−</button>
+                      <span className="w-10 text-center text-lg font-black text-gray-800 dark:text-white">{form.transport.carOccupants}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateTransport('carOccupants', Math.min(8, form.transport.carOccupants + 1))}
+                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black hover:bg-eco-500 hover:text-white transition-all"
+                      >+</button>
+                    </div>
+                  </div>
+                  {form.transport.carOccupants > 1 && (
+                    <p className="text-[10px] font-bold text-eco-600 dark:text-eco-400">
+                      💡 Splitting {liveStats.householdTransport} kg among {form.transport.carOccupants} occupants → your share is {liveStats.breakdown.transport} kg (household trip = {liveStats.householdTransport} kg)
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

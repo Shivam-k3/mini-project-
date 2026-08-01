@@ -53,7 +53,7 @@ export default function Reports() {
             {/* Header branding */}
             <div className="flex justify-between items-start border-b border-gray-100 dark:border-gray-800/80 pb-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">EcoGuardian AI</h2>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">EcoGuardian</h2>
                 <p className="text-[10px] text-eco-500 font-bold uppercase tracking-wider mt-0.5">UN SDG 13: Climate Action Audit</p>
               </div>
               <div className="text-right text-[10px] text-gray-400 font-medium">
@@ -107,7 +107,7 @@ export default function Reports() {
 
             {/* Footer branding */}
             <div className="border-t border-gray-100 dark:border-gray-800/80 pt-6 text-center text-[9px] font-semibold text-gray-400 uppercase tracking-wider">
-              EcoGuardian AI — Certified SDG 13 Personal Carbon Audit Report
+              EcoGuardian — Certified SDG 13 Personal Carbon Audit Report
             </div>
           </div>
         </div>

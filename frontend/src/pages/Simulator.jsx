@@ -15,6 +15,7 @@ export default function Simulator() {
     foodHabit: '',
     solarPanels: false,
     workFromHome: false,
+    carOccupants: 1,
   });
 
   useEffect(() => {
@@ -53,6 +54,9 @@ export default function Simulator() {
       changes.transportMode = 'bike';
       changes.transportKm = 15;
       changes.replaceMode = 'car';
+    }
+    if (customChanges.carOccupants > 1) {
+      changes.carOccupants = customChanges.carOccupants;
     }
     runSimulation(changes, 'Custom Scenario');
   };
@@ -161,6 +165,27 @@ export default function Simulator() {
                   className="sr-only peer" />
                 <div className="w-9 h-5 bg-gray-200 dark:bg-gray-800 rounded-full peer peer-focus:ring-2 peer-focus:ring-eco-500/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-eco-500"></div>
               </label>
+            </div>
+
+            {/* Carpool Occupants */}
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Carpool — Vehicle Occupants</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomChanges({ ...customChanges, carOccupants: Math.max(1, customChanges.carOccupants - 1) })}
+                  className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black hover:bg-eco-500 hover:text-white transition-all"
+                >−</button>
+                <span className="flex-1 text-center text-lg font-black text-gray-800 dark:text-white">
+                  {customChanges.carOccupants === 1 ? 'Solo (1)' : `${customChanges.carOccupants} people`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCustomChanges({ ...customChanges, carOccupants: Math.min(8, customChanges.carOccupants + 1) })}
+                  className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black hover:bg-eco-500 hover:text-white transition-all"
+                >+</button>
+              </div>
+              <p className="text-[9px] text-gray-400">Shared trips split emissions equally among occupants (car/EV only)</p>
             </div>
 
             <button onClick={runCustom} disabled={loading} className="btn-primary w-full py-2.5 text-xs">

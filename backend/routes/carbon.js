@@ -63,12 +63,14 @@ async function autoAwardBadges(user, entry) {
 }
 
 router.post('/', protect, async (req, res) => {
-  const { total, breakdown } = calculateEmissions(req.body);
+  const { total, breakdown, householdTotal, householdBreakdown } = calculateEmissions(req.body);
   const entry = await CarbonEntry.create({
     user: req.user._id,
     ...req.body,
     totalEmissions: total,
     breakdown,
+    householdTotal,
+    householdBreakdown,
   });
 
   // Update gamification

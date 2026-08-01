@@ -59,11 +59,11 @@ export default function Login() {
 
   return (
     <main className="auth-shell">
-      <section className="auth-brand-panel" aria-label="EcoGuardian AI introduction">
+      <section className="auth-brand-panel" aria-label="EcoGuardian introduction">
         <div className="auth-brand-overlay" />
         <div className="auth-brand-content">
-          <div className="auth-mark"><img src="/leaf.svg" alt="EcoGuardian AI" className="w-14 h-14" /></div>
-          <p className="auth-brand-name"><Typewriter text="EcoGuardian AI" speed={65} /></p>
+          <div className="auth-mark"><img src="/leaf.svg" alt="EcoGuardian" className="w-14 h-14" /></div>
+          <p className="auth-brand-name"><Typewriter text="EcoGuardian" speed={65} /></p>
           <h1>Pioneering the future of sustainability through intelligent ecological stewardship.</h1>
 
           <div className="auth-proof-list">
@@ -82,7 +82,7 @@ export default function Login() {
 
       <section className="auth-form-panel">
         <div className="auth-mobile-brand">
-          <img src="/leaf.svg" alt="" className="w-5 h-5 inline-block" /> <Typewriter text="EcoGuardian AI" speed={65} />
+          <img src="/leaf.svg" alt="" className="w-5 h-5 inline-block" /> <Typewriter text="EcoGuardian" speed={65} />
         </div>
 
         <div className="auth-form-wrap">

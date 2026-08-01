@@ -39,6 +39,18 @@ const PRESET_SCENARIOS = [
     changes: { transportMode: 'ev', transportKm: 20, replaceMode: 'car' },
   },
   {
+    id: 'carpool-4',
+    name: '4-Person Carpool',
+    description: 'Split your car commute emissions among 4 occupants (~75% personal reduction)',
+    changes: { carOccupants: 4 },
+  },
+  {
+    id: 'school-bus',
+    name: 'School Run → School Bus',
+    description: 'Replace the school-run car trip with the school bus',
+    changes: { transportMode: 'bus', transportKm: 10, replaceMode: 'car' },
+  },
+  {
     id: 'public-transit',
     name: 'Use Public Transit',
     description: 'Replace car commute with bus',

@@ -190,7 +190,7 @@ Trees Equivalent: 161 trees/year
 Impact Score: 73/100
 ```
 
-6 preset scenarios + fully customizable sliders.
+8 preset scenarios (incl. 4-Person Carpool and School Run → School Bus, both occupancy-aware) + fully customizable sliders.
 
 ### 7.7 Gamification
 

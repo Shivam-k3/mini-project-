@@ -7,7 +7,7 @@ const documents = {
   privacy: {
     eyebrow: 'Privacy notice',
     title: 'Your data, handled with care.',
-    intro: 'This notice explains what EcoGuardian AI collects, why it is used, and the choices available to people using a campus sustainability workspace.',
+    intro: 'This notice explains what EcoGuardian collects, why it is used, and the choices available to people using a campus sustainability workspace.',
     sections: [
       ['Information we process', [
         'Account information such as your name, user ID, institutional email address, college, department, and role.',
@@ -22,7 +22,7 @@ const documents = {
       ]],
       ['Who can see information', [
         'You can see your own profile and individual activity. Authorised faculty and college administrators may see the aggregated or student-level information their role permits.',
-        'EcoGuardian AI does not sell personal information. Information is only shared with service providers needed to run the platform, or when required by applicable law.'
+        'EcoGuardian does not sell personal information. Information is only shared with service providers needed to run the platform, or when required by applicable law.'
       ]],
       ['Retention and your choices', [
         'Your institution controls account lifecycle and retention settings. Contact your campus administrator to correct, export, or request deletion of your account data.',
@@ -33,10 +33,10 @@ const documents = {
   terms: {
     eyebrow: 'Terms of use',
     title: 'Clear rules for a trusted workspace.',
-    intro: 'These terms govern access to EcoGuardian AI by students, faculty, administrators, and other authorised institutional users.',
+    intro: 'These terms govern access to EcoGuardian by students, faculty, administrators, and other authorised institutional users.',
     sections: [
       ['Using the platform', [
-        'Use EcoGuardian AI only with an authorised account and for lawful sustainability, educational, or institutional purposes.',
+        'Use EcoGuardian only with an authorised account and for lawful sustainability, educational, or institutional purposes.',
         'Keep your credentials private. You are responsible for activity performed through your account until you report suspected unauthorised access.',
         'Do not attempt to access another person’s account, bypass role controls, disrupt the service, or upload harmful content.'
       ]],
@@ -50,14 +50,14 @@ const documents = {
       ]],
       ['Service availability', [
         'We aim to keep the service available and secure, but features may change, be maintained, or be unavailable from time to time.',
-        'Where permitted by law, EcoGuardian AI is provided without warranties beyond those that cannot legally be excluded.'
+        'Where permitted by law, EcoGuardian is provided without warranties beyond those that cannot legally be excluded.'
       ]]
     ]
   },
   security: {
     eyebrow: 'Security & data handling',
     title: 'Security designed into the workflow.',
-    intro: 'EcoGuardian AI uses role-aware access controls and protective account practices to reduce unnecessary exposure of campus sustainability data.',
+    intro: 'EcoGuardian uses role-aware access controls and protective account practices to reduce unnecessary exposure of campus sustainability data.',
     sections: [
       ['How accounts are protected', [
         'Passwords are stored as one-way hashes; the application never stores a readable copy of a password.',
@@ -81,7 +81,7 @@ const documents = {
   cookies: {
     eyebrow: 'Cookie & session notice',
     title: 'A minimal approach to session storage.',
-    intro: 'EcoGuardian AI uses essential browser storage to remember an authenticated session and your chosen interface theme.',
+    intro: 'EcoGuardian uses essential browser storage to remember an authenticated session and your chosen interface theme.',
     sections: [
       ['What is stored', [
         'An authentication token is stored in your browser after a successful sign-in so protected pages can recognise your session.',
@@ -103,7 +103,7 @@ export default function Legal() {
   return (
     <main className="legal-page">
       <header className="legal-nav">
-        <Link to="/login" className="legal-brand"><img src="/leaf.svg" alt="" className="w-5 h-5 inline-block" /> EcoGuardian AI</Link>
+        <Link to="/login" className="legal-brand"><img src="/leaf.svg" alt="" className="w-5 h-5 inline-block" /> EcoGuardian</Link>
         <Link to="/login" className="legal-back"><FiArrowLeft size={15} /> Back to sign in</Link>
       </header>
 
