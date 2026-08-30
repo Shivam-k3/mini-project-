@@ -2,59 +2,48 @@ const express = require('express');
 const CarbonEntry = require('../models/CarbonEntry');
 const Simulation = require('../models/Simulation');
 const { protect } = require('../middleware/auth');
-const { simulateScenario } = require('../utils/emissionFactors');
+const { calculateTrips } = require('../utils/tripEngine');
 const { getDigitalTwinSimulation } = require('../utils/mlService');
 
 const router = express.Router();
 
+// Mobility-only preset scenarios. `changes` follows the ML /simulate contract.
 const PRESET_SCENARIOS = [
   {
     id: 'car-to-metro',
-    name: 'Switch Car to Metro',
-    description: 'Replace 10km daily car commute with metro',
-    changes: { transportMode: 'metro', transportKm: 10, replaceMode: 'car' },
+    name: 'Car → Metro',
+    description: 'Shift your car km to the metro',
+    changes: { replaceMode: 'car', newMode: 'metro' },
   },
   {
-    id: 'reduce-electricity',
-    name: 'Reduce Electricity by 20%',
-    description: 'Cut electricity consumption by 20%',
-    changes: { electricityReduction: 20 },
-  },
-  {
-    id: 'go-vegetarian',
-    name: 'Become Vegetarian',
-    description: 'Switch from non-vegetarian to vegetarian diet',
-    changes: { foodHabit: 'vegetarian' },
-  },
-  {
-    id: 'install-solar',
-    name: 'Install Solar Panels',
-    description: 'Install solar panels for 85% electricity reduction',
-    changes: { solarPanels: true },
-  },
-  {
-    id: 'ev-instead-car',
-    name: 'Switch to Electric Vehicle',
-    description: 'Replace car with EV for daily commute',
-    changes: { transportMode: 'ev', transportKm: 20, replaceMode: 'car' },
+    id: 'car-to-bus',
+    name: 'Car → Bus',
+    description: 'Shift your car km to the bus',
+    changes: { replaceMode: 'car', newMode: 'bus' },
   },
   {
     id: 'carpool-4',
     name: '4-Person Carpool',
-    description: 'Split your car commute emissions among 4 occupants (~75% personal reduction)',
-    changes: { carOccupants: 4 },
+    description: 'Split your car emissions among 4 occupants',
+    changes: { mode: 'car', occupants: 4 },
   },
   {
-    id: 'school-bus',
-    name: 'School Run → School Bus',
-    description: 'Replace the school-run car trip with the school bus',
-    changes: { transportMode: 'bus', transportKm: 10, replaceMode: 'car' },
+    id: 'ev-swap',
+    name: 'Switch to EV',
+    description: 'Replace your petrol/diesel vehicle with an EV',
+    changes: { vehicleSwap: { category: 'hatchback', fuelType: 'electric' } },
   },
   {
-    id: 'public-transit',
-    name: 'Use Public Transit',
-    description: 'Replace car commute with bus',
-    changes: { transportMode: 'bus', transportKm: 15, replaceMode: 'car' },
+    id: 'moto-to-metro',
+    name: 'Motorcycle → Metro',
+    description: 'Shift your motorcycle km to the metro',
+    changes: { replaceMode: 'motorcycle', newMode: 'metro' },
+  },
+  {
+    id: 'auto-to-bus',
+    name: 'Auto → Bus',
+    description: 'Shift auto-rickshaw km to the bus',
+    changes: { replaceMode: 'auto_rickshaw', newMode: 'bus' },
   },
 ];
 
@@ -65,51 +54,79 @@ router.get('/scenarios', protect, (req, res) => {
 router.post('/simulate', protect, async (req, res) => {
   try {
     const { changes, name } = req.body;
-
-    const latestEntry = await CarbonEntry.findOne({ user: req.user._id }).sort({ date: -1 });
-    const baseline = latestEntry ? latestEntry.toObject() : {
-      transport: { bike: 0, bus: 0, metro: 0, car: 10, ev: 0, flight: 0 },
-      electricity: 15,
-      water: 150,
-      foodHabit: 'nonVegetarian',
-      shoppingFrequency: 'medium',
-      wasteGeneration: 'medium',
-      fuel: { petrol: 0, diesel: 0, lpg: 0 },
-      solarPanels: false,
-    };
-
-    const result = simulateScenario(baseline, changes);
-
-    const mlResult = await getDigitalTwinSimulation(baseline, changes);
-    if (mlResult) {
-      result.mlPrediction = mlResult;
-      result.yearlySavings = mlResult.yearlySavings;
-      result.treesEquivalent = mlResult.treesEquivalent;
-      result.impactScore = mlResult.impactScore;
+    if (!changes || typeof changes !== 'object') {
+      return res.status(400).json({ message: 'changes object is required' });
     }
 
-    const simulation = await Simulation.create({
-      user: req.user._id,
-      name: name || 'Custom Simulation',
-      baseline,
-      changes,
-      results: {
-        baselineTotal: result.baseline.total,
-        scenarioTotal: result.scenario.total,
-        reduction: result.reduction,
-        reductionPercent: result.reductionPercent,
-      },
-    });
+    const latestEntry = await CarbonEntry.findOne({ user: req.user._id }).sort({ date: -1 });
 
-    res.json({
-      ...result,
-      simulationId: simulation._id,
-      comparison: {
-        labels: ['Baseline', 'Scenario'],
-        baseline: Object.values(result.baseline.breakdown),
-        scenario: Object.values(result.scenario.breakdown),
-        categories: Object.keys(result.baseline.breakdown),
-      },
+    // ---- Trips-aware simulation (v3) --------------------------------------
+    if (latestEntry && Array.isArray(latestEntry.trips) && latestEntry.trips.length > 0) {
+      const baselineTrips = latestEntry.trips.map((t) => t.toObject ? t.toObject() : { ...t });
+      const baselineResult = await calculateTrips(baselineTrips);
+
+      const mlResult = await getDigitalTwinSimulation(
+        { trips: baselineTrips },
+        changes
+      );
+
+      let scenarioTrips = baselineTrips;
+      if (mlResult?.scenario?.tripDetails) {
+        scenarioTrips = mlResult.scenario.tripDetails.map((t) => ({
+          mode: t.mode,
+          distanceKm: t.distanceKm,
+          occupants: t.occupants,
+          tripFrequency: t.tripFrequency || 1,
+          purpose: t.purpose || 'commute',
+          vehicle: t.vehicle || undefined,
+        }));
+      }
+      const scenarioResult = await calculateTrips(scenarioTrips);
+
+      const reduction = Math.round((baselineResult.transportPersonal - scenarioResult.transportPersonal) * 100) / 100;
+      const reductionPercent = baselineResult.transportPersonal > 0
+        ? Math.round((reduction / baselineResult.transportPersonal) * 1000) / 10
+        : 0;
+
+      const simulation = await Simulation.create({
+        user: req.user._id,
+        name: name || 'Mobility Scenario',
+        baseline: { trips: baselineTrips },
+        changes,
+        results: {
+          baselineTotal: baselineResult.transportPersonal,
+          scenarioTotal: scenarioResult.transportPersonal,
+          reduction,
+          reductionPercent,
+        },
+      });
+
+      return res.json({
+        transportOnly: true,
+        baseline: {
+          transportPersonal: baselineResult.transportPersonal,
+          breakdown: baselineResult.modeBreakdown,
+          tripDetails: baselineResult.tripDetails,
+        },
+        scenario: {
+          transportPersonal: scenarioResult.transportPersonal,
+          breakdown: scenarioResult.modeBreakdown,
+          tripDetails: scenarioResult.tripDetails,
+        },
+        reduction,
+        reductionPercent,
+        yearlySavings: mlResult?.yearlySavings ?? Math.round(reduction * 365 * 10) / 10,
+        treesEquivalent: mlResult?.treesEquivalent ?? Math.round((reduction * 365) / 21),
+        impactScore: mlResult?.impactScore ?? Math.min(100, Math.round(reductionPercent * 1.5)),
+        simulationId: simulation._id,
+      });
+    }
+
+    // No trips to simulate against. Previously this fell back to a fabricated
+    // lifestyle baseline (electricity/water/food/shopping/waste), which
+    // inflated the baseline denominator and diluted every reductionPercent.
+    return res.status(400).json({
+      message: 'Log at least one trip before running a simulation.',
     });
   } catch (error) {
     console.error('Simulation error:', error);

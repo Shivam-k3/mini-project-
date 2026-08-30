@@ -3,12 +3,23 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { carbonAPI, gamificationAPI, collegeAdminAPI, facultyAPI, superAdminAPI } from '../services/api';
 import StatCard from '../components/StatCard';
+import CopyButton from '../components/CopyButton';
 import { DashboardSkeleton } from '../components/Skeleton';
 import { EmissionPieChart, TrendLineChart, ShapBarChart } from '../components/Charts';
+import { formatMode } from '../utils/modeLabels';
 import {
   FiPlusCircle, FiCpu, FiMessageCircle, FiArrowRight,
-  FiUsers, FiShield, FiZap,
+  FiUsers, FiShield, FiZap, FiClock,
 } from 'react-icons/fi';
+
+function formatRelativeTime(date) {
+  if (!date) return '';
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 /* ── Page title block ───────────────────────────────────── */
 function PageHeader({ title, subtitle, actions }) {
@@ -52,6 +63,7 @@ function StudentDashboard() {
         setData(dash.data);
         setStats(gam.data);
         setRecent(entries.data?.entries || []);
+        setData((prev) => ({ ...prev, fetchedAt: new Date().toISOString() }));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -66,11 +78,20 @@ function StudentDashboard() {
     <div className="space-y-6 animate-slide-up">
       <PageHeader
         title="My Climate Dashboard"
-        subtitle="Track your footprint, run simulations, and monitor AI predictions."
+        subtitle={
+          <span className="flex items-center gap-1.5">
+            Track your footprint, run simulations, and monitor AI predictions.
+            {data?.fetchedAt && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 ml-2">
+                <FiClock size={10} /> Updated {formatRelativeTime(data.fetchedAt)}
+              </span>
+            )}
+          </span>
+        }
         actions={
           <>
             <Link to="/calculator" className="btn-primary text-xs py-2 px-4">
-              <FiPlusCircle size={13} /> Log Footprint
+              <FiPlusCircle size={13} /> Log Trips
             </Link>
             <Link to="/simulator" className="btn-secondary text-xs py-2 px-4">
               <FiCpu size={13} /> Run Simulation
@@ -82,11 +103,11 @@ function StudentDashboard() {
         }
       />
 
-      {/* ── KPI row ─────────────────────────────────────── */}
+      {/* ── KPI row (transportation-only, occupancy-allocated) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon="☀️" label="Today"      value={data?.daily   || 0} unit="kg CO₂" color="eco"    />
-        <StatCard icon="📅" label="This Week"  value={data?.weekly  || 0} unit="kg CO₂" color="ocean"  />
-        <StatCard icon="📊" label="This Month" value={data?.monthly || 0} unit="kg CO₂" color="purple" />
+        <StatCard icon="☀️" label="Today"      value={data?.transport?.dailyPersonal   ?? data?.daily   ?? 0} unit="kg CO₂" color="eco"    />
+        <StatCard icon="📅" label="This Week"  value={data?.transport?.weeklyPersonal  ?? data?.weekly  ?? 0} unit="kg CO₂" color="ocean"  />
+        <StatCard icon="📊" label="This Month" value={data?.transport?.monthlyPersonal ?? data?.monthly ?? 0} unit="kg CO₂" color="purple" />
         <StatCard icon="🌍" label="All Time"   value={data?.total   || 0} unit="kg CO₂" color="amber"  />
       </div>
 
@@ -129,13 +150,21 @@ function StudentDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FiZap size={15} className="text-amber-500" />
-              <p className="section-label !mb-0">ML Emission Forecasts</p>
+              <p className="section-label !mb-0">Transport Forecast (ML)</p>
             </div>
-            {predictions?.confidence && (
-              <span className="badge badge-eco">
-                {(predictions.confidence * 100).toFixed(0)}% Confidence
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {predictions?.method && (
+                <span className="badge badge-purple font-mono text-[9px]">{predictions.method}</span>
+              )}
+              {predictions?.nextWeek && (
+                <CopyButton text={`Next Week: ${predictions.nextWeek} kg CO₂ | Next Month: ${predictions.nextMonth} kg CO₂`} label="Copy" />
+              )}
+              {predictions?.confidence && (
+                <span className="badge badge-eco">
+                  {(predictions.confidence * 100).toFixed(0)}% Confidence
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -164,7 +193,11 @@ function StudentDashboard() {
                 predictions?.trend === 'increasing' ? 'text-red-500'  : 'text-gray-500'
               }`}>{predictions?.trend || 'Stable'}</span>
             </span>
-            <span className="font-mono text-[10px]">Gradient Boosting Model</span>
+            <span className="font-mono text-[10px]">
+              {predictions?.method === 'xgboost' ? 'XGBoost (v3)' :
+               predictions?.method === 'hybrid' ? 'Hybrid baseline+ML' :
+               predictions?.method === 'rolling_average' ? 'Rolling average' : 'Adaptive model'}
+            </span>
           </div>
         </div>
       </div>
@@ -172,13 +205,17 @@ function StudentDashboard() {
       {/* ── Charts row ──────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="card">
-          <p className="section-label">Emission Source Breakdown</p>
-          {data?.categoryBreakdown && Object.keys(data.categoryBreakdown).length > 0 ? (
+          <p className="section-label">Transport Mode Breakdown</p>
+          {data?.modeBreakdown && Object.keys(data.modeBreakdown).length > 0 ? (
             <div className="max-w-[260px] mx-auto mt-2">
-              <EmissionPieChart breakdown={data.categoryBreakdown} />
+              <EmissionPieChart breakdown={data.modeBreakdown} />
+            </div>
+          ) : shap?.contributions && Object.keys(shap.contributions).length > 0 ? (
+            <div className="max-w-[260px] mx-auto mt-2">
+              <EmissionPieChart breakdown={shap.contributions} />
             </div>
           ) : (
-            <p className="text-gray-400 text-sm text-center py-16">Log carbon entries to see sources.</p>
+            <p className="text-gray-400 text-sm text-center py-16">Log trips to see your mode mix.</p>
           )}
         </div>
 
@@ -241,17 +278,22 @@ function StudentDashboard() {
             {recentEntries.map((e) => (
               <div key={e._id} className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-eco-100 dark:bg-eco-950 flex items-center justify-center text-sm">🌿</div>
+                  <div className="w-8 h-8 rounded-xl bg-eco-100 dark:bg-eco-950 flex items-center justify-center text-sm">🧳</div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800 dark:text-white">Carbon entry logged</p>
+                    <p className="text-xs font-bold text-gray-800 dark:text-white">
+                      {e.trips?.length ? `Trip log — ${e.trips.length} trip${e.trips.length > 1 ? 's' : ''}` : 'Carbon entry logged'}
+                    </p>
                     <p className="text-[10px] text-gray-400 mt-0.5">
                       {new Date(e.date).toLocaleDateString()} · {new Date(e.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {e.trips?.length ? ` · ${e.trips.map((t) => formatMode(t.mode)).slice(0, 3).join(', ')}` : ''}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-black text-gray-800 dark:text-white">{e.totalEmissions?.toFixed(2)} kg</p>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">CO₂ eq.</p>
+                  <p className="text-sm font-black text-gray-800 dark:text-white">
+                    {(e.transportPersonal ?? e.totalEmissions)?.toFixed(2)} kg
+                  </p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">personal CO₂</p>
                 </div>
               </div>
             ))}
@@ -378,7 +420,7 @@ function CollegeAdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon="🏫" label="Eco Score"         value={stats?.campusEcoScore          || 0} unit="Campus Avg"  color="eco"    />
         <StatCard icon="🌍" label="Campus Emissions"  value={stats?.campusEmissions?.toFixed(1) || 0} unit="kg CO₂" color="amber"  />
-        <StatCard icon="📉" label="Reduction Rate"    value={stats?.monthlyReduction         || 0} unit="% Month"   color="ocean"  />
+        <StatCard icon="📉" label="Reduction Rate"    value={stats?.monthlyReduction ?? '—'} unit={stats?.monthlyReduction != null ? '% Month' : 'No data'} color="ocean"  />
         <StatCard icon="👥" label="Total Users"       value={(stats?.totalStudents || 0) + (stats?.totalFaculty || 0)} unit="Provisioned" color="purple" />
       </div>
 

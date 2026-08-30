@@ -2,7 +2,33 @@ const axios = require('axios');
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'gemini';
 
+// The assistant is a MOBILITY-domain expert. It must refuse questions outside
+// transportation/mobility rather than improvising generic sustainability advice.
+const SYSTEM_PROMPT = `You are EcoGuardian Mobility AI, an assistant specialised EXCLUSIVELY in sustainable mobility and transportation carbon management (SDG 13).
+
+STRICT SCOPE RULES:
+- Answer ONLY questions about: commuting, vehicle choices, EVs, public transit, carpooling/occupancy, cycling/walking, flights vs rail, emission factors for transport modes, and the user's own logged trips.
+- If asked about ANYTHING else (food, electricity, shopping, waste, water, homework, general chat, coding, news), politely decline in one sentence and redirect to a mobility topic.
+- Use the user's actual trip data when relevant. Never invent statistics; if unsure of a number, say it is approximate or refer to their dashboard.
+- Be concise (2-4 short paragraphs max).`;
+
+function isOffTopic(message) {
+  const m = String(message || '').toLowerCase();
+  const onTopic = [
+    'transport', 'travel', 'commute', 'car', 'ev', 'electric vehicle', 'metro',
+    'bus', 'train', 'flight', 'fly', 'bike', 'cycle', 'walk', 'carpool',
+    'motorcycle', 'scooter', 'auto', 'trip', 'vehicle', 'fuel', 'petrol',
+    'diesel', 'emission', 'carbon', 'footprint', 'mobility', 'occupancy',
+  ];
+  return !onTopic.some((k) => m.includes(k));
+}
+
 async function getAIResponse(message, userContext) {
+  // Hard domain gate — applied before any provider call.
+  if (isOffTopic(message)) {
+    return getFallbackResponse(message, userContext);
+  }
+
   const openAIKey = process.env.OPENAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -24,7 +50,7 @@ async function getGeminiResponse(message, userContext) {
     const { data } = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }],
         generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
       },
       { timeout: 30000 }
@@ -45,7 +71,7 @@ async function getOpenAIResponse(message, userContext) {
       {
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are EcoGuardian AI, a sustainability assistant focused on SDG 13 Climate Action.' },
+          { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
         max_tokens: 1024,
@@ -63,96 +89,60 @@ async function getOpenAIResponse(message, userContext) {
 }
 
 function buildPrompt(message, ctx) {
-  return `You are EcoGuardian AI, a personal carbon footprint sustainability assistant for SDG 13 (Climate Action).
-
-User Profile:
+  return `User Profile:
 - Name: ${ctx.name || 'User'}
-- Daily CO2 Goal: ${ctx.goal || 15} kg
 - Eco Score: ${ctx.ecoScore || 50}/100
 - Green Points: ${ctx.greenPoints || 0}
 - Current Streak: ${ctx.streak || 0} days
 
-Recent Carbon Data:
-- Latest Daily Emissions: ${ctx.latestEmissions || 'N/A'} kg CO2
-- Weekly Average: ${ctx.weeklyAvg || 'N/A'} kg CO2
-- Top Emission Source: ${ctx.topSource || 'N/A'}
-- Emission Breakdown: ${JSON.stringify(ctx.breakdown || {})}
+Recent Mobility Data:
+- Daily personal transport emissions: ${ctx.latestTransport ?? 'N/A'} kg CO2
+- Weekly personal transport emissions: ${ctx.weeklyTransport ?? 'N/A'} kg CO2
+- Mode breakdown (kg/day): ${JSON.stringify(ctx.modeBreakdown || {})}
 
 User Question: ${message}
 
-Provide a helpful, personalized, actionable response focused on reducing carbon emissions. Include specific numbers when possible. Keep response concise but informative (2-4 paragraphs).`;
+Answer strictly within the mobility/transportation scope described in your instructions.`;
 }
 
 function getFallbackResponse(message, ctx) {
-  const lower = message.toLowerCase();
-  const emissions = ctx.latestEmissions || 20;
-  const topSource = ctx.topSource || 'transport';
+  const lower = String(message || '').toLowerCase();
 
-  if (lower.includes('reduce') || lower.includes('lower')) {
-    return `Based on your current emissions of ${emissions} kg CO2/day, here are personalized recommendations:
-
-1. **Transport (${topSource === 'transport' ? 'Your biggest source!' : 'Important'})**: Switch to public transit or cycling for short trips. Each km by car emits ~0.21 kg CO2 vs 0 for biking.
-
-2. **Energy**: Reduce electricity by 20% — turn off unused devices, use LED bulbs, and optimize AC usage. This could save ~${(emissions * 0.15).toFixed(1)} kg CO2/day.
-
-3. **Food**: Consider plant-based meals 3-4 days/week. Switching from non-vegetarian to vegetarian saves ~4.7 kg CO2/day.
-
-Your eco score of ${ctx.ecoScore || 50}/100 can improve significantly with these changes!`;
+  // Off-topic refusal
+  if (isOffTopic(message)) {
+    return `I'm EcoGuardian Mobility AI — I can only help with transportation and commuting questions, like choosing between metro, bus, cycling, EVs or carpooling. Try asking "How can I make my commute greener?"`;
   }
 
-  if (lower.includes('travel') || lower.includes('transport')) {
-    return `Eco-friendly travel suggestions for you:
+  const modes = ctx.modeBreakdown || {};
+  const topMode = Object.entries(modes).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const daily = ctx.latestTransport;
 
-🚇 **Metro/Bus**: Best for daily commute — emits only 0.04-0.09 kg CO2/km
-🚲 **Bicycle**: Zero emissions, great for trips under 5km
-⚡ **Electric Vehicle**: ~0.05 kg CO2/km (75% less than petrol cars)
-✈️ **Flights**: Avoid when possible — 0.255 kg CO2/km. Consider train for regional travel.
+  if (lower.includes('reduce') || lower.includes('lower') || lower.includes('greener')) {
+    return `Based on your logged trips${daily != null ? ` (${daily} kg CO₂/day personal transport)` : ''}, here are personalised mobility suggestions:
 
-Try the Digital Twin Simulator to see exactly how switching transport modes affects your footprint!`;
+🚇 **Public transit**: Metro emits ~0.041 kg/passenger-km vs ~0.21 kg/km for a solo petrol car.
+👥 **Carpooling**: Sharing your car with 3 others cuts each person's share by ~75%.
+🚲 **Active travel**: Walking and cycling are zero-emission for short trips.
+⚡ **EV switch**: An EV at India's grid intensity (~0.107 kg/km at 0.15 kWh/km) beats most petrol vehicles.
+
+Try the Digital Twin Simulator to test these against YOUR distances!`;
   }
 
-  if (lower.includes('weekly') || lower.includes('plan')) {
-    return `Your Personalized Weekly Sustainability Plan:
+  if (topMode) {
+    return `Your dominant mode right now is **${topMode.replace('_', ' ')}** (${modes[topMode]} kg/day).
 
-**Monday-Tuesday**: Meat-free days + bike/walk for commutes
-**Wednesday-Thursday**: Reduce electricity 20% — unplug devices, natural lighting
-**Friday**: Low-shopping day — avoid unnecessary purchases
-**Weekend**: Review your carbon dashboard, complete a weekly challenge
-
-**Target**: Reduce daily emissions from ${emissions} kg to ${(emissions * 0.8).toFixed(1)} kg CO2
-**Potential savings**: ${(emissions * 0.2 * 7).toFixed(1)} kg CO2 this week!
-
-Complete challenges to earn green points and badges! 🌱`;
+Depending on the mode, shifting some km to metro/bus or increasing occupancy usually gives the biggest cut. Open your Mobility Twin to see replacement options computed from your own weekly distances.`;
   }
 
-  if (lower.includes('report') || lower.includes('explain')) {
-    const breakdown = ctx.breakdown || {};
-    return `Your Carbon Report Explanation:
-
-📊 **Total Daily Emissions**: ${emissions} kg CO2
-${Object.entries(breakdown).map(([k, v]) => `• **${k.charAt(0).toUpperCase() + k.slice(1)}**: ${v} kg (${emissions > 0 ? ((v / emissions) * 100).toFixed(1) : 0}%)`).join('\n')}
-
-${topSource === 'transport' ? '🚗 Transport is your largest emission source. Consider public transit or cycling.' : ''}
-${topSource === 'electricity' ? '⚡ Electricity usage is significant. Try energy-efficient appliances and solar panels.' : ''}
-${topSource === 'food' ? '🍽️ Food choices impact your footprint. Plant-based diets reduce emissions by ~60%.' : ''}
-
-Your eco score: ${ctx.ecoScore || 50}/100. Keep logging daily to improve predictions!`;
-  }
-
-  return `Hello ${ctx.name || 'there'}! I'm EcoGuardian AI, your sustainability assistant for SDG 13 Climate Action.
-
-Your current stats:
-• Daily emissions: ${emissions} kg CO2
-• Eco Score: ${ctx.ecoScore || 50}/100
-• Green Points: ${ctx.greenPoints || 0}
+  return `Hello ${ctx.name || 'there'}! I'm EcoGuardian Mobility AI.
 
 I can help you with:
-• Reducing your carbon emissions
-• Eco-friendly travel suggestions
-• Weekly sustainability plans
-• Explaining your carbon reports
+• Greener commute choices (metro, bus, cycle, walk)
+• Carpooling and occupancy effects
+• EV vs petrol comparisons
+• Understanding your trip emissions
 
-What would you like to know? Try asking "How can I reduce my emissions?" or use the Digital Twin Simulator to test lifestyle changes!`;
+Log a few trips first so I can give personalised advice!`;
 }
 
 module.exports = { getAIResponse };

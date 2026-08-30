@@ -1,7 +1,18 @@
 # 🌿 EcoGuardian
 
-**AI-Powered Carbon Footprint Management Platform for College Campuses**  
+**Explainable AI-Based Sustainable Mobility & Transportation Carbon Management Platform**
 *Supporting UN SDG 13: Climate Action*
+
+> **v3.0.0 — Transportation-only platform.** All calculations, ML features, SHAP
+> explanations and reports now cover MOBILITY exclusively (car, EV, motorcycle,
+> auto-rickshaw, bus, metro, flight, bicycle, walk) with occupancy-aware
+> per-person allocation. Legacy 7-category lifestyle entries are archived but no
+> longer active. Emission factors come from a sourced dataset
+> (`config/emission-factors.json`); nothing is fabricated. ML predictions use an
+> adaptive 3-tier system (rolling average → hybrid → XGBoost) with honest method
+> labels; SHAP runs only on real XGBoost models. Synthetic training data is
+> clearly labelled as such — reported metrics describe fit to simulated
+> commuters, not real-world accuracy.
 
 [![React 18](https://img.shields.io/badge/React-18-blue)]()
 [![Node.js](https://img.shields.io/badge/Node.js-Express-green)]()
@@ -17,33 +28,38 @@
 
 | # | Feature | Category | Status | Key Technical Detail |
 |---|---|---|---|---|
-| 1 | **Carbon Calculator** | Core | ✅ Production | 7-category input → `calculateEmissions()` → total + breakdown in kg CO₂ |
-| 2 | **Dashboard & Analytics** | Core | ✅ Production | Daily/weekly/monthly totals, pie charts, line trends, category breakdown |
-| 3 | **XGBoost ML Predictions** | ML | ✅ Production | `predictor.py`: 9 features, scoped models (`carbon_model_{scope}_{id}.pkl`), 200 estimators |
-| 4 | **Data-Aware Prediction Tiers** | ML | ✅ Production | <10 entries → rolling avg, 10–30 → hybrid, 30+ → full XGBoost (prevents overfitting) |
-| 5 | **SHAP Explainable AI** | ML | ✅ Production | `shap_explainer.py`: TreeExplainer + composition analysis; returns contributions, topFactors, modelFeatureImportance |
-| 6 | **Digital Twin Simulator** | Simulation | ✅ Production | 8 presets (car→metro, EV, solar, vegetarian, bus, electricity cut, carpool, school bus) + custom sliders (incl. carpool occupants); yearly savings, trees equivalent, impact score |
-| 7 | **Dual Calculation (JS + Python)** | Simulation | ✅ Verified | `emissionFactors.js` ↔ `emission_utils.py`: identical factors and formulas; tested matching outputs |
-| 8 | **AI Sustainability Assistant** | AI | ✅ Production | Gemini 2.0 Flash / GPT-4o-mini + context-aware fallback (user emissions, eco score, streak) |
-| 9 | **Multi-Tenant Roles** | Auth | ✅ Production | JWT + bcrypt; 4 roles: `super_admin` → `college_admin` → `faculty` → `student`; middleware-enforced ACL |
-| 10 | **Scoped ML Models** | ML | ✅ Production | `carbon_model_user_{id}.pkl`, `carbon_model_department_{id}.pkl`, `carbon_model_college_{id}.pkl` — no cross-tenant leakage |
-| 11 | **Gamification System** | Engagement | ✅ Production | Eco Score (0–100), Green Points, streak tracking, 9 badges, weekly challenges, department leaderboard |
-| 12 | **Auto-Badge Awarding** | Engagement | ✅ New | 7 badges auto-awarded on entry log: first_entry, week_streak, month_streak, eco_hero, carbon_cut, green_commuter, eco_warrior |
-| 13 | **ExplainableAI — Real Data** | UI | ✅ Fixed | Confidence gauge from real ML confidence, drivers from topFactors, recommendations from SHAP; no hardcoded values |
-| 14 | **College Admin Panel** | Admin | ✅ Production | Department CRUD, user provisioning, CSV import, campus analytics, campus ML predictions |
-| 15 | **Faculty Panel** | Admin | ✅ Production | Department analytics, student participation monitor, dept challenges, dept ML predictions |
-| 16 | **Super Admin Panel** | Admin | ✅ Production | College CRUD, college admin provisioning, global analytics, college comparison rankings, announcements |
-| 17 | **PDF Reports** | Reports | ✅ Production | PDFKit-generated carbon audit with summary, breakdown, predictions, SHAP insights, AI recommendations |
-| 18 | **In-Memory DB Fallback** | DevOps | ✅ Production | `mongodb-memory-server`: zero-setup development; auto-seeding of demo accounts on every start |
-| 19 | **Eco-Themed UI** | UI | ✅ Production | Tailwind CSS: gradient sidebar, green-tinted glass cards, animated stat cards, green scrollbar, responsive grid |
-| 20 | **Walk-Forward Evaluation** | ML | ✅ Verified | Sliding window validation (50 users × 60 days); XGBoost achieves 5.45 kg MAE (-11.8% vs naive mean) |
-| 21 | **Animated Landing Page** | UI | ✅ Production | 3D Earth (R3F shader), tsParticles background, GSAP scroll story, animated counters, glow CTA buttons |
-| 22 | **Page Transitions** | UI | ✅ Production | Framer Motion AnimatePresence wrap on all protected routes (fade + scale exit/enter) |
-| 23 | **Skeleton Loading** | UI | ✅ Production | 10 skeleton variants (Dashboard, Gamification, ExplainableAI, Admin, Card, Chart, Table, Badge, Leaderboard) |
-| 24 | **Rate Limiting** | DevOps | ✅ Production | 6 tiered limiters: login (10 failed/15m per account+IP, successful logins exempt), prediction (30/h), AI (20/day), simulation (50/day), report (10/day), submission (1/10s, write methods only) |
-| 25 | **Custom Brand Logo** | UI | ✅ Production | Circular emblem (globe + human profile + circuit nodes + leaf), SVG with full typography + tagline |
-| 26 | **Typewriter Animation** | UI | ✅ Production | Character-by-character reveal of "EcoGuardian" on login screen with blinking cursor |
-| 27 | **Occupancy-Aware Carbon Allocation** | Core | ✅ New | Personal vs household split: car/EV emissions ÷ occupants (1–8, default 1); both values stored per entry; hybrid allocation (solo = 100%, shared = equal split) |
+| 1 | **Trip Logger (v3)** | Core | ✅ Production | Trips-based input (mode/distance/occupants/purpose/vehicle) → `calculateTrips()` → occupancy-allocated personal + household kg CO₂ |
+| 2 | **Dashboard & Analytics** | Core | ✅ Production | Daily/weekly/monthly **personal transport** totals, mode-mix pie, trend lines; legacy entries still render |
+| 3 | **XGBoost ML Predictions (v3)** | ML | ✅ Production | `predictor.py` v3.0.0: 10 transport-only features (`car_km…day_of_week`), scoped models, stale-model schema guard |
+| 4 | **Data-Aware Prediction Tiers** | ML | ✅ Production | <10 entries → rolling avg, 10–29 → hybrid blend, ≥30 → XGBoost; honest method label on every response |
+| 5 | **SHAP Explainable AI** | ML | ✅ Production | TreeExplainer only for real v3 XGBoost models; per-MODE composition analysis; single FEATURE_COLS source |
+| 6 | **Mobility Twin Simulator** | Simulation | ✅ Production | Trips-aware presets (car→metro, EV swap, carpool, auto→bus); mode-shift / occupancy / vehicle-swap changes; trip-level before/after |
+| 7 | **Dual Calculation (JS + Python)** | Simulation | ✅ Verified | `tripEngine.js` ↔ `emission_utils.py`: same factor dataset (`config/emission-factors.json`), 86-check parity suite green |
+| 8 | **AI Mobility Assistant** | AI | ✅ Production | Gemini/GPT-4o-mini restricted to transportation domain; off-topic questions politely refused; context = user's own mode breakdown |
+| 9 | **Multi-Tenant Roles + Individuals** | Auth | ✅ Production | JWT + bcrypt; roles: `super_admin`, `college_admin`, `faculty`, `student`, plus public self-registration as `individual` |
+| 10 | **Scoped ML Models** | ML | ✅ Production | user/department/college model files with feature-schema guard — old v2 lifestyle models are rejected, never silently reused |
+| 11 | **Gamification System** | Engagement | ✅ Production | Eco Score, Green Points, streaks, badges, transport-themed challenges, leaderboard (students + individuals) |
+| 12 | **Auto-Badge Awarding** | Engagement | ✅ Production | 7 badges auto-awarded on entry log |
+| 13 | **ExplainableAI Page** | UI | ✅ Production | Confidence from real ML confidence, drivers from topFactors; no hardcoded values |
+| 14 | **Organization Admin Panel** | Admin | ✅ Production | Department CRUD, user provisioning, CSV import, campus analytics (**monthly reduction derived from data or null — never fabricated**) |
+| 15 | **Faculty Panel** | Admin | ✅ Production | Department analytics, participation monitor, challenges, dept predictions |
+| 16 | **Super Admin Panel** | Admin | ✅ Production | Organization CRUD, admin provisioning, global analytics, rankings, announcements |
+| 17 | **PDF Reports** | Reports | ✅ Production | Transportation-only mobility report: personal totals, mode breakdown, km by mode, AI recommendations |
+| 18 | **In-Memory DB Fallback** | DevOps | ✅ Production | `mongodb-memory-server` for zero-setup dev; non-destructive seeding (demo wipe only when empty or `FORCE_RESEED=true`) |
+| 19 | **Eco-Themed UI** | UI | ✅ Production | Tailwind CSS glass design system, responsive grid |
+| 20 | **Walk-Forward Evaluation** | ML | ✅ Verified | Archetype-based synthetic commuters; XGBoost vs naive baselines; results labelled SYNTHETIC (sanity check, not real-world accuracy) |
+| 21 | **Animated Landing Page** | UI | ✅ Production | 3D Earth, particles, GSAP scroll story |
+| 22 | **Page Transitions** | UI | ✅ Production | Framer Motion on all protected routes |
+| 23 | **Skeleton Loading** | UI | ✅ Production | 10 skeleton variants |
+| 24 | **Rate Limiting** | DevOps | ✅ Production | login (10 failed/15m per account+IP), submission (1/10s write methods only), prediction/AI/simulation/report tiers |
+| 25 | **Custom Brand Logo** | UI | ✅ Production | SVG emblem with typography |
+| 26 | **Typewriter Animation** | UI | ✅ Production | Login screen reveal animation |
+| 27 | **Occupancy-Aware Carbon Allocation** | Core | ✅ Production | car/motorcycle/auto_rickshaw/EV emissions ÷ occupants (1–8); bus/metro/flight already per-passenger |
+| 28 | **Hierarchical Emission Factors (v3)** | Core | ✅ New | declared CO₂ g/km → exact catalog → category+fuel → efficiency-derived (kg/L ÷ km/L) → generic mode; every result carries source + confidence level |
+| 29 | **Sourced Factor Dataset** | Core | ✅ New | `config/emission-factors.json` v3.0.0: CEA v19 grid (0.716 kg/kWh), fuel combustion factors, mode defaults; NO fabricated manufacturer data |
+| 30 | **Personal Mobility Twin** | Core | ✅ New | Per-user derived twin: baseline daily/weekly/monthly personal kg, mode mix, weekly km, occupancy profile, primary vehicle profile |
+| 31 | **Replacement Recommendations** | Core | ✅ New | Personalised options computed from the USER'S own distances vs sourced factors (metro shift, carpool, EV swap, auto→bus) |
+| 32 | **Security Headers & CI** | DevOps | ✅ New | helmet middleware; node:test unit suite (14 checks); GitHub Actions CI (backend tests + ML compile/parity + frontend build) |
 
 **Legend:** ✅ Production = fully implemented and tested | ✅ Verified = mathematically verified | ✅ New = added in latest update | ✅ Fixed = bug resolved
 

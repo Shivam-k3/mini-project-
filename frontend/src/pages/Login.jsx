@@ -5,6 +5,7 @@ import {
   FiUser, FiLock, FiEye, FiEyeOff, FiCheck,
   FiArrowRight, FiMail
 } from 'react-icons/fi';
+import { FieldError } from '../components/FormFeedback';
 import toast from 'react-hot-toast';
 
 const sandboxAccounts = [
@@ -36,13 +37,32 @@ export default function Login() {
   const [form, setForm] = useState({ emailOrUserId: '', password: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   useEffect(() => {
     if (user) navigate(user.firstLogin ? '/change-password' : '/dashboard');
   }, [user, navigate]);
 
+  const validate = (f) => {
+    const e = {};
+    if (!f.emailOrUserId.trim()) e.emailOrUserId = 'Email or User ID is required';
+    else if (f.emailOrUserId.trim().length < 3) e.emailOrUserId = 'Enter a valid email or User ID';
+    if (!f.password) e.password = 'Password is required';
+    return e;
+  };
+
+  const handleBlur = (field) => {
+    setTouched((t) => ({ ...t, [field]: true }));
+    setErrors(validate(form));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errs = validate(form);
+    setErrors(errs);
+    setTouched({ emailOrUserId: true, password: true });
+    if (Object.keys(errs).length > 0) return;
     setLoading(true);
     try {
       const data = await login(form.emailOrUserId, form.password);
@@ -115,10 +135,13 @@ export default function Login() {
                   placeholder="CSE25001 or user@campus.edu"
                   value={form.emailOrUserId}
                   onChange={(e) => setForm({ ...form, emailOrUserId: e.target.value })}
+                  onBlur={() => handleBlur('emailOrUserId')}
                   autoComplete="username"
                   required
+                  aria-invalid={touched.emailOrUserId && !!errors.emailOrUserId}
                 />
               </div>
+              <FieldError message={touched.emailOrUserId ? errors.emailOrUserId : ''} />
             </label>
 
             <label>
@@ -131,8 +154,10 @@ export default function Login() {
                   placeholder="Enter your password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onBlur={() => handleBlur('password')}
                   autoComplete="current-password"
                   required
+                  aria-invalid={touched.password && !!errors.password}
                 />
                 <button
                   type="button"
@@ -142,6 +167,7 @@ export default function Login() {
                   {showPass ? <FiEyeOff /> : <FiEye />}
                 </button>
               </div>
+              <FieldError message={touched.password ? errors.password : ''} />
             </label>
 
             <label className="auth-remember">

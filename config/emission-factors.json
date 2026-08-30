@@ -1,0 +1,56 @@
+{
+  "version": "3.0.0",
+  "updated": "2026-08-21",
+  "_honesty_policy": [
+    "No fabricated manufacturer data: no manufacturer/model/variant entries are shipped.",
+    "Level 1 (vehicle-specific) resolves ONLY from user-declared CO2 g/km or admin-curated catalog entries added later.",
+    "Category defaults are indicative midpoints of published ranges (confidence: low) - UI must disclose them.",
+    "EVs are never computed from petrol/diesel fuel efficiency; they use kWh/km x grid factor.",
+    "Every factor carries source metadata where a published value exists."
+  ],
+  "grid_electricity": {
+    "region": "IN",
+    "factor_kg_per_kwh": 0.716,
+    "source": "Central Electricity Authority (India), CO2 Baseline Database v19, weighted average emission factor",
+    "source_url": "https://cea.nic.in/cdm-co2-baseline-database/",
+    "source_year": 2023,
+    "confidence_level": "medium"
+  },
+  "fuel_combustion_kg_per_liter": {
+    "petrol": 2.31,
+    "diesel": 2.68,
+    "lpg": 1.51,
+    "_source": "DEFRA GHG conversion factors 2024 (gross CV basis may differ slightly by jurisdiction)"
+  },
+  "ev_default_consumption_kwh_per_km": 0.15,
+  "modes": {
+    "walk":       { "co2_kg_per_km": 0.0, "per_passenger": true,  "source": "Zero tailpipe emissions (embodied/manufacturing emissions excluded)", "source_url": "", "source_year": null, "confidence_level": "high" },
+    "bicycle":    { "co2_kg_per_km": 0.0, "per_passenger": true,  "source": "Zero tailpipe emissions (embodied/manufacturing emissions excluded)", "source_url": "", "source_year": null, "confidence_level": "high" },
+    "car":        { "co2_kg_per_km": 0.21, "per_passenger": false, "source": "Generic average petrol car; aligned with DEFRA conversion-factor ranges", "source_url": "https://www.gov.uk/government/collections/government-conversion-factors-for-company-reporting", "source_year": 2024, "confidence_level": "medium" },
+    "motorcycle": { "co2_kg_per_km": 0.113, "per_passenger": false, "source": "Indicative average 100-150cc petrol motorcycle (midpoint of published ranges)", "source_url": "", "source_year": null, "confidence_level": "low" },
+    "auto_rickshaw": { "co2_kg_per_km": 0.075, "per_passenger": false, "source": "Indicative mixed CNG/petrol auto-rickshaw average", "source_url": "", "source_year": null, "confidence_level": "low" },
+    "bus":        { "co2_kg_per_km": 0.089, "per_passenger": true,  "source": "Per-passenger urban bus average assuming typical occupancy; DEFRA-aligned", "source_url": "https://www.gov.uk/government/collections/government-conversion-factors-for-company-reporting", "source_year": 2024, "confidence_level": "medium" },
+    "metro":      { "co2_kg_per_km": 0.041, "per_passenger": true,  "source": "Per-passenger metro rail intensity (Delhi Metro CDM/UNFCCC reporting order of magnitude)", "source_url": "https://www.dmrc.org", "source_year": 2023, "confidence_level": "medium" },
+    "flight":     { "co2_kg_per_km": 0.255, "per_passenger": true,  "source": "Indicative short-haul economy per-passenger factor; DEFRA-aligned upper bound", "source_url": "https://www.gov.uk/government/collections/government-conversion-factors-for-company-reporting", "source_year": 2024, "confidence_level": "low" },
+    "ev":         { "co2_kg_per_km": 0.107, "per_passenger": false, "source": "Computed: default 0.15 kWh/km x India grid factor 0.716 kgCO2/kWh (CEA v19)", "source_url": "https://cea.nic.in/cdm-co2-baseline-database/", "source_year": 2023, "confidence_level": "medium" }
+  },
+  "vehicle_categories": [
+    { "mode": "car", "vehicle_category": "hatchback", "fuel_type": "petrol",  "co2_kg_per_km": 0.145, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "sedan",     "fuel_type": "petrol",  "co2_kg_per_km": 0.165, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "suv",       "fuel_type": "petrol",  "co2_kg_per_km": 0.200, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "hatchback", "fuel_type": "diesel",  "co2_kg_per_km": 0.140, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "sedan",     "fuel_type": "diesel",  "co2_kg_per_km": 0.155, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "suv",       "fuel_type": "diesel",  "co2_kg_per_km": 0.190, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "hatchback", "fuel_type": "cng",     "co2_kg_per_km": 0.105, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "sedan",     "fuel_type": "cng",     "co2_kg_per_km": 0.120, "confidence_level": "low" },
+    { "mode": "car", "vehicle_category": "hatchback", "fuel_type": "electric", "kwh_per_km": 0.140, "confidence_level": "medium" },
+    { "mode": "car", "vehicle_category": "sedan",     "fuel_type": "electric", "kwh_per_km": 0.150, "confidence_level": "medium" },
+    { "mode": "car", "vehicle_category": "suv",       "fuel_type": "electric", "kwh_per_km": 0.180, "confidence_level": "medium" },
+    { "mode": "motorcycle", "vehicle_category": "scooter",    "fuel_type": "petrol", "co2_kg_per_km": 0.098, "confidence_level": "low" },
+    { "mode": "motorcycle", "vehicle_category": "standard",   "fuel_type": "petrol", "co2_kg_per_km": 0.113, "confidence_level": "low" },
+    { "mode": "motorcycle", "vehicle_category": "performance","fuel_type": "petrol", "co2_kg_per_km": 0.140, "confidence_level": "low" },
+    { "mode": "auto_rickshaw", "vehicle_category": "standard", "fuel_type": "cng",    "co2_kg_per_km": 0.066, "confidence_level": "low" },
+    { "mode": "auto_rickshaw", "vehicle_category": "standard", "fuel_type": "petrol", "co2_kg_per_km": 0.089, "confidence_level": "low" }
+  ],
+  "_category_note": "All vehicle_category values are indicative defaults (confidence low). They exist so the platform degrades gracefully when no vehicle-specific data is available. The UI must show 'Category-level factor' whenever this tier is used."
+}

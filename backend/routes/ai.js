@@ -16,23 +16,28 @@ router.post('/chat', protect, async (req, res) => {
     .limit(30);
 
   const latest = entries[0];
-  const weeklyAvg = entries.length > 0
-    ? entries.slice(0, 7).reduce((s, e) => s + e.totalEmissions, 0) / Math.min(7, entries.length)
+
+  // Transportation-only context (occupancy-allocated personal emissions)
+  const personalOf = (e) =>
+    typeof e.transportPersonal === 'number' ? e.transportPersonal : (e.breakdown?.transport || 0);
+
+  const weeklyTransport = entries.length > 0
+    ? entries.slice(0, 7).reduce((s, e) => s + personalOf(e), 0) / Math.min(7, entries.length)
     : 0;
 
-  const breakdown = latest?.breakdown || {};
-  const topSource = Object.entries(breakdown).sort((a, b) => b[1] - a[1])[0]?.[0] || 'transport';
+  const modeBreakdown = latest?.modeBreakdown?.transport || {};
+  if (!Object.keys(modeBreakdown).length && latest?.breakdown?.transport) {
+    modeBreakdown.transport = latest.breakdown.transport;
+  }
 
   const context = {
     name: req.user.name,
-    goal: req.user.profile?.goal || 15,
     ecoScore: req.user.gamification?.ecoScore || 50,
     greenPoints: req.user.gamification?.greenPoints || 0,
     streak: req.user.gamification?.streak || 0,
-    latestEmissions: latest?.totalEmissions,
-    weeklyAvg: Math.round(weeklyAvg * 100) / 100,
-    topSource,
-    breakdown,
+    latestTransport: Math.round(personalOf(latest || {}) * 100) / 100,
+    weeklyTransport: Math.round(weeklyTransport * 100) / 100,
+    modeBreakdown,
   };
 
   const response = await getAIResponse(message, context);

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FieldError, FormSuccess } from '../components/FormFeedback';
 import toast from 'react-hot-toast';
 
 export default function ChangePassword() {
@@ -11,11 +12,28 @@ export default function ChangePassword() {
   const [form, setForm] = useState({ newPassword: '', confirmPassword: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({});
+
+  const errors = useMemo(() => {
+    const e = {};
+    if (touched.newPassword) {
+      if (!form.newPassword) e.newPassword = 'Password is required';
+      else if (form.newPassword.length < 6) e.newPassword = 'Must be at least 6 characters';
+    }
+    if (touched.confirmPassword) {
+      if (!form.confirmPassword) e.confirmPassword = 'Please confirm your password';
+      else if (form.newPassword !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
+    }
+    return e;
+  }, [form, touched]);
+
+  const passwordsMatch = form.confirmPassword && form.newPassword === form.confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.newPassword.length < 6) return toast.error('Password must be at least 6 characters.');
-    if (form.newPassword !== form.confirmPassword) return toast.error('Passwords do not match.');
+    const allTouched = { newPassword: true, confirmPassword: true };
+    setTouched(allTouched);
+    if (errors.newPassword || errors.confirmPassword || !form.newPassword || !form.confirmPassword) return;
     setLoading(true);
     try {
       await authAPI.changePassword({ newPassword: form.newPassword });
@@ -66,10 +84,11 @@ export default function ChangePassword() {
                 <FiLock size={14} className="absolute left-3.5 top-3.5 text-gray-400 pointer-events-none" />
                 <input
                   type={showPass ? 'text' : 'password'}
-                  className="input-field pl-9 pr-10"
+                  className={`input-field pl-9 pr-10 ${touched.newPassword && errors.newPassword ? '!border-red-400 !focus:ring-red-400/15' : ''}`}
                   placeholder="Minimum 6 characters"
                   value={form.newPassword}
                   onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+                  onBlur={() => setTouched((t) => ({ ...t, newPassword: true }))}
                   required
                 />
                 <button
@@ -80,6 +99,7 @@ export default function ChangePassword() {
                   {showPass ? <FiEyeOff size={15} /> : <FiEye size={15} />}
                 </button>
               </div>
+              <FieldError message={errors.newPassword} />
             </div>
 
             {/* Confirm password */}
@@ -91,13 +111,16 @@ export default function ChangePassword() {
                 <FiLock size={14} className="absolute left-3.5 top-3.5 text-gray-400 pointer-events-none" />
                 <input
                   type={showPass ? 'text' : 'password'}
-                  className="input-field pl-9"
+                  className={`input-field pl-9 ${touched.confirmPassword && errors.confirmPassword ? '!border-red-400 !focus:ring-red-400/15' : ''} ${passwordsMatch ? '!border-eco-400' : ''}`}
                   placeholder="Repeat your password"
                   value={form.confirmPassword}
                   onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  onBlur={() => setTouched((t) => ({ ...t, confirmPassword: true }))}
                   required
                 />
               </div>
+              <FieldError message={errors.confirmPassword} />
+              {passwordsMatch && <FormSuccess message="Passwords match" />}
             </div>
 
             {/* Strength hint */}

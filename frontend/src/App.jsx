@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import PageTransition from './components/PageTransition';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
 import Calculator from './pages/Calculator';
@@ -20,27 +21,29 @@ import Landing from './pages/Landing';
 import Legal from './pages/Legal';
 
 function AppLayout() {
+  // Roles with full personal mobility-tool access (spec §1/§4):
+  const PERSONAL_TOOLS = ['student', 'individual', 'faculty'];
   return (
     <Layout>
       <PageTransition>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/calculator" element={
-            <ProtectedRoute allowedRoles={['student']}><Calculator /></ProtectedRoute>
+            <ProtectedRoute allowedRoles={['student', 'individual']}><Calculator /></ProtectedRoute>
           } />
           <Route path="/simulator" element={
-            <ProtectedRoute allowedRoles={['student', 'faculty']}><Simulator /></ProtectedRoute>
+            <ProtectedRoute allowedRoles={PERSONAL_TOOLS}><Simulator /></ProtectedRoute>
           } />
           <Route path="/assistant" element={
-            <ProtectedRoute allowedRoles={['student', 'faculty']}><Assistant /></ProtectedRoute>
+            <ProtectedRoute allowedRoles={PERSONAL_TOOLS}><Assistant /></ProtectedRoute>
           } />
           <Route path="/gamification" element={
-            <ProtectedRoute allowedRoles={['student']}><Gamification /></ProtectedRoute>
+            <ProtectedRoute allowedRoles={['student', 'individual']}><Gamification /></ProtectedRoute>
           } />
           <Route path="/reports" element={<Reports />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/explainable-ai" element={
-            <ProtectedRoute allowedRoles={['student']}><ExplainableAI /></ProtectedRoute>
+            <ProtectedRoute allowedRoles={['student', 'individual']}><ExplainableAI /></ProtectedRoute>
           } />
           <Route path="/admin" element={
             <ProtectedRoute allowedRoles={['super_admin', 'college_admin']}><Admin /></ProtectedRoute>
@@ -60,6 +63,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/legal/privacy" element={<Legal />} />
           <Route path="/legal/terms" element={<Legal />} />
           <Route path="/legal/security" element={<Legal />} />

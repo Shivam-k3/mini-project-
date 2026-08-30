@@ -12,6 +12,12 @@ const collegeAdminOnly = (req, res, next) => {
   if (req.user?.role !== 'college_admin') {
     return res.status(403).json({ message: 'College Admin access required' });
   }
+  // Every query below is scoped by `collegeId`. A college_admin without one would
+  // resolve those scopes to `{ collegeId: null }`, which is exactly the tenancy of
+  // personal-mode users — so refuse rather than leak across the boundary.
+  if (!req.user.collegeId) {
+    return res.status(403).json({ message: 'Account is not attached to an organization' });
+  }
   next();
 };
 
@@ -368,8 +374,29 @@ router.get('/analytics/campus', async (req, res) => {
     ]);
     const campusEmissions = emissionsResult[0]?.total || 0;
 
-    // Monthly reduction (mocked or derived from trend comparison)
-    const monthlyReduction = 8.5; // percentage reduction default
+    // Monthly reduction — DERIVED from actual data, never fabricated.
+    // Compares the last 30 days against the 30 days before that.
+    const now = new Date();
+    const d30 = new Date(now); d30.setDate(d30.getDate() - 30);
+    const d60 = new Date(now); d60.setDate(d60.getDate() - 60);
+
+    const [recentAgg, prevAgg] = await Promise.all([
+      CarbonEntry.aggregate([
+        { $match: { user: { $in: studentIds }, date: { $gte: d30 } } },
+        { $group: { _id: null, total: { $sum: '$totalEmissions' }, n: { $sum: 1 } } }
+      ]),
+      CarbonEntry.aggregate([
+        { $match: { user: { $in: studentIds }, date: { $gte: d60, $lt: d30 } } },
+        { $group: { _id: null, total: { $sum: '$totalEmissions' }, n: { $sum: 1 } } }
+      ]),
+    ]);
+
+    let monthlyReduction = null;
+    let monthlyReductionNote = 'Insufficient data in both periods to compute a trend.';
+    if (recentAgg[0]?.n > 0 && prevAgg[0]?.n > 0 && prevAgg[0].total > 0) {
+      monthlyReduction = Math.round(((prevAgg[0].total - recentAgg[0].total) / prevAgg[0].total) * 1000) / 10;
+      monthlyReductionNote = 'Derived from total logged emissions: last 30 days vs previous 30 days.';
+    }
 
     // Campus average Eco Score
     const campusEcoScore = students.length > 0
@@ -431,6 +458,7 @@ router.get('/analytics/campus', async (req, res) => {
       activeUsers,
       campusEmissions,
       monthlyReduction,
+      monthlyReductionNote,
       campusEcoScore,
       deptComparison,
       monthlyTrend: monthlyTrend.map(t => ({ month: t._id, emissions: t.total })),

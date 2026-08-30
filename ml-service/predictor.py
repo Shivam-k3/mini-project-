@@ -1,13 +1,22 @@
-"""Carbon emission prediction using XGBoost with multi-tenant support.
+"""Transportation CO2 prediction using XGBoost with adaptive tiers and multi-tenant scopes.
 
-Supports three scopes for model training and prediction:
-  - "user"       : Per-user model (trained on individual history)
-  - "department" : Department-level model (trained on aggregated student data)
-  - "college"    : College-level model (trained on all users in a college)
+v3.0.0 — TRANSPORTATION-ONLY pipeline (spec §15/§17):
+  * Features describe mobility behaviour exclusively (mode km, occupancy,
+    day-of-week). Legacy lifestyle fields (electricity/water/food/shopping/
+    waste/fuel) are NEVER used as features or targets.
+  * Targets are occupancy-allocated personal transport emissions.
+  * Adaptive tiers:
+      Tier 1 (< 10 samples)  : rolling-average statistical baseline ("rolling_average")
+      Tier 2 (10–29 samples) : hybrid = rolling baseline blended with XGBoost ("hybrid")
+      Tier 3 (>= 30 samples) : full XGBoost model ("xgboost")
+    SHAP explanations are only meaningful for Tier 3 XGBoost output.
 
-Each scope saves model files to models/carbon_model_<scope>_<scope_id>.pkl
-so they never overwrite each other. This enables a distributed campus setup
-where superadmin → college_admin → faculty → student each see relevant predictions.
+Scopes (model files never collide):
+  - "user"       : per-user personalized model
+  - "department" : department-level model
+  - "college"    : organization-level model (presented as "Organization" in UI)
+
+Legacy v2 models (9 lifestyle features) are rejected by the stale-model guard.
 """
 
 import os
@@ -26,88 +35,150 @@ import joblib
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# The 9 feature columns the model expects, in exact order
+MODEL_VERSION = "3.0.0"
+
+# Transport-only feature columns, exact order (spec §15 candidate features that
+# actually exist in the data). Distances are RAW vehicle km (behaviour), while
+# the target is the occupancy-allocated personal emission.
 FEATURE_COLS = [
-    "transport_total", "electricity", "water", "food_val",
-    "shopping_val", "waste_val", "fuel_total", "day_of_week",
-    "car_occupants",
+    "car_km", "ev_km", "motorcycle_km", "auto_rickshaw_km",
+    "bus_km", "metro_km", "flight_km", "active_km",
+    "occupants", "day_of_week",
 ]
 
-# Mapping from categorical user inputs to numeric feature values
-FOOD_MAP = {"vegetarian": 2.5, "nonVegetarian": 7.2, "vegan": 1.5}
-SHOP_MAP = {"low": 0.5, "medium": 2.0, "high": 5.0}
-WASTE_MAP = {"low": 0.3, "medium": 1.0, "high": 2.5}
+TRANSPORT_MODES = ["car", "ev", "motorcycle", "auto_rickshaw", "bus", "metro", "flight", "bicycle", "walk"]
+OCCUPANCY_SPLIT_MODES = {"car", "motorcycle", "auto_rickshaw", "ev"}
 
-# ---------------------------------------------------------------------------
-# Scoped model paths  (avoids collisions between user/dept/college models)
-# ---------------------------------------------------------------------------
-def _model_path(scope, scope_id):
-    """Return the .pkl path for a given scope and scope_id."""
-    filename = f"carbon_model_{scope}_{scope_id}.pkl"
-    return os.path.join(MODEL_DIR, filename)
+# Adaptive tier thresholds (spec §17)
+TIER1_MAX = 9      # < 10 samples -> rolling average
+TIER2_MAX = 29     # 10..29       -> hybrid
+
+LEGACY_MODE_MAP = {"car": "car", "ev": "ev", "bus": "bus", "metro": "metro", "flight": "flight"}
 
 
-def _meta_path(scope, scope_id):
-    """Return the metadata JSON path for a given scope and scope_id."""
-    filename = f"model_meta_{scope}_{scope_id}.json"
-    return os.path.join(MODEL_DIR, filename)
+def _clamp_occupants(v):
+    try:
+        n = int(round(float(v)))
+    except (TypeError, ValueError):
+        return 1
+    return max(1, min(8, n))
 
 
-def _get_model_paths(scope, scope_id):
-    """Convenience: return (model_path, meta_path) for the scope."""
-    return _model_path(scope, scope_id), _meta_path(scope, scope_id)
+def _extract_mode_kms(entry):
+    """Return ({mode: raw_km}, [occupants...]) from a v3 trips entry or legacy aggregate."""
+    mode_km = {m: 0.0 for m in TRANSPORT_MODES}
+    occupants_seen = []
+
+    trips = entry.get("trips")
+    if isinstance(trips, list) and trips:
+        for t in trips:
+            if not isinstance(t, dict):
+                continue
+            mode = str(t.get("mode", "")).lower().strip()
+            if mode not in mode_km:
+                continue
+            try:
+                dist = float(t.get("distanceKm", 0))
+            except (TypeError, ValueError):
+                continue
+            if dist <= 0:
+                continue
+            try:
+                freq = max(1, int(round(float(t.get("tripFrequency") or 1))))
+            except (TypeError, ValueError):
+                freq = 1
+            mode_km[mode] += dist * freq
+            if mode in OCCUPANCY_SPLIT_MODES:
+                occupants_seen.append(_clamp_occupants(t.get("occupants", 1)))
+        return mode_km, occupants_seen
+
+    # Legacy daily-aggregate shape (archival entries): still valid MOBILITY data.
+    legacy = entry.get("transport", {})
+    if isinstance(legacy, dict):
+        for key, mode in LEGACY_MODE_MAP.items():
+            try:
+                mode_km[mode] += float(legacy.get(key, 0) or 0)
+            except (TypeError, ValueError):
+                pass
+        try:
+            mode_km["bicycle"] += float(legacy.get("bike", 0) or 0)
+        except (TypeError, ValueError):
+            pass
+        occupants_seen.append(_clamp_occupants(legacy.get("carOccupants", 1)))
+    return mode_km, occupants_seen
+
+
+def _transport_target(entry):
+    """Occupancy-allocated personal transport emissions for one entry."""
+    v = entry.get("transportPersonal")
+    if v is None:
+        breakdown = entry.get("breakdown") or {}
+        v = breakdown.get("transport", 0)
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
 # Feature extraction
 # ---------------------------------------------------------------------------
 def _extract_features(entry):
-    """Convert a raw carbon entry dict into an OrderedDict of 9 numeric features.
-
-    The order matches FEATURE_COLS exactly so array indexing is always correct.
-    """
-    transport = entry.get("transport", {})
-    fuel = entry.get("fuel", {})
-    if isinstance(transport, dict):
-        transport_km = sum(v for k, v in transport.items() if k != "carOccupants")
-        try:
-            occupants = max(1, min(8, int(float(transport.get("carOccupants", 1)))))
-        except (TypeError, ValueError):
-            occupants = 1
-    else:
-        transport_km = 0
-        occupants = 1
+    """Convert a carbon entry dict into an OrderedDict matching FEATURE_COLS."""
+    mode_km, occupants_seen = _extract_mode_kms(entry)
+    occupants = float(np.mean(occupants_seen)) if occupants_seen else 1.0
+    date = entry.get("date") or entry.get("createdAt") or "2024-01-01"
+    try:
+        dow = pd.Timestamp(date).dayofweek
+    except Exception:
+        dow = 0
     return OrderedDict([
-        ("transport_total", transport_km),
-        ("electricity", entry.get("electricity", 0)),
-        ("water", entry.get("water", 0)),
-        ("food_val", FOOD_MAP.get(entry.get("foodHabit", "nonVegetarian"), 7.2)),
-        ("shopping_val", SHOP_MAP.get(entry.get("shoppingFrequency", "medium"), 2.0)),
-        ("waste_val", WASTE_MAP.get(entry.get("wasteGeneration", "medium"), 1.0)),
-        ("fuel_total", sum(fuel.values()) if isinstance(fuel, dict) else 0),
-        ("day_of_week", pd.Timestamp(entry.get("date", "2024-01-01")).dayofweek),
-        ("car_occupants", occupants),
+        ("car_km", mode_km["car"]),
+        ("ev_km", mode_km["ev"]),
+        ("motorcycle_km", mode_km["motorcycle"]),
+        ("auto_rickshaw_km", mode_km["auto_rickshaw"]),
+        ("bus_km", mode_km["bus"]),
+        ("metro_km", mode_km["metro"]),
+        ("flight_km", mode_km["flight"]),
+        ("active_km", mode_km["bicycle"] + mode_km["walk"]),
+        ("occupants", occupants),
+        ("day_of_week", dow),
     ])
 
 
 def _history_to_df(history):
-    """Convert a list of carbon entry dicts into a DataFrame with features + target."""
+    """Convert entry dicts into a DataFrame of transport features + target."""
     rows = []
     for entry in history:
         features = _extract_features(entry)
-        # Accept both 'totalEmissions' (MongoDB) and 'total_emissions' (alternate naming)
-        features["target"] = entry.get("totalEmissions", entry.get("total_emissions", 0))
+        features["target"] = _transport_target(entry)
         rows.append(features)
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Scoped model paths (avoids collisions between user/dept/org models)
+# ---------------------------------------------------------------------------
+def _model_path(scope, scope_id):
+    return os.path.join(MODEL_DIR, f"carbon_model_{scope}_{scope_id}.pkl")
+
+
+def _meta_path(scope, scope_id):
+    return os.path.join(MODEL_DIR, f"model_meta_{scope}_{scope_id}.json")
+
+
+def _get_model_paths(scope, scope_id):
+    return _model_path(scope, scope_id), _meta_path(scope, scope_id)
 
 
 # ---------------------------------------------------------------------------
 # Model persistence (scoped)
 # ---------------------------------------------------------------------------
 def _load_model(scope, scope_id):
-    """Load a previously-saved model and scaler for the given scope.
+    """Load a saved model+scaler+meta, or (None, None, {}).
 
-    Returns (model, scaler, meta_dict) or (None, None, {}) if not found.
+    Stale-model guard: any model whose feature count/schema differs from the
+    current transportation FEATURE_COLS is rejected (old v2 lifestyle models).
     """
     model_path, meta_path = _get_model_paths(scope, scope_id)
     if not os.path.exists(model_path):
@@ -118,8 +189,9 @@ def _load_model(scope, scope_id):
         if os.path.exists(meta_path):
             with open(meta_path) as f:
                 meta = json.load(f)
-        # Stale model guard: feature count changed → force retrain
         if meta.get("n_features") != len(FEATURE_COLS):
+            return None, None, {}
+        if meta.get("feature_schema") != list(FEATURE_COLS):
             return None, None, {}
         return artifacts["model"], artifacts["scaler"], meta
     except Exception:
@@ -127,7 +199,6 @@ def _load_model(scope, scope_id):
 
 
 def _save_model(model, scaler, meta, scope, scope_id):
-    """Save model + scaler as a .pkl and metadata as JSON, both scoped."""
     model_path, meta_path = _get_model_paths(scope, scope_id)
     joblib.dump({"model": model, "scaler": scaler}, model_path)
     with open(meta_path, "w") as f:
@@ -135,10 +206,9 @@ def _save_model(model, scaler, meta, scope, scope_id):
 
 
 # ---------------------------------------------------------------------------
-# Training
+# Training helpers
 # ---------------------------------------------------------------------------
 def _train_xgboost(X, y):
-    """Internal: train an XGBoost regressor on pre-scaled features."""
     model = XGBRegressor(
         n_estimators=200,
         max_depth=5,
@@ -153,7 +223,6 @@ def _train_xgboost(X, y):
 
 
 def _compute_metrics(y_true, y_pred):
-    """Internal: compute R², MAE, RMSE between true and predicted values."""
     return {
         "r2": round(float(r2_score(y_true, y_pred)), 3),
         "mae": round(float(mean_absolute_error(y_true, y_pred)), 2),
@@ -162,34 +231,51 @@ def _compute_metrics(y_true, y_pred):
 
 
 def _safe_val(x):
-    """Safely convert a numpy numeric to float, returning 0.0 for inf/nan."""
     if isinstance(x, (int, float, np.integer, np.floating)) and np.isfinite(x):
         return float(x)
     return 0.0
 
 
+def _rolling_baseline(history, n_days=7):
+    """Tier 1 statistical baseline: mean of the most recent week of targets."""
+    targets = [_transport_target(e) for e in history]
+    window = targets[-7:] if len(targets) >= 7 else targets
+    avg = float(np.mean(window)) if window else 0.0
+    return {
+        "nextWeek": round(avg * n_days, 2),
+        "nextMonth": round(avg * 30, 2),
+        "dailyForecast": [round(avg, 2)] * n_days,
+        "recentAverage": round(avg, 2),
+    }
+
+
+def _feature_importance(model):
+    importance = {}
+    if hasattr(model, "feature_importances_") and model.feature_importances_ is not None:
+        importance = {
+            FEATURE_COLS[i]: round(float(model.feature_importances_[i]), 4)
+            for i in range(len(FEATURE_COLS))
+        }
+    return importance
+
+
+def _fit(history):
+    """Fit scaler+xgboost on history; returns (model, scaler, metrics)."""
+    df = _history_to_df(history)
+    X = df[FEATURE_COLS].values
+    y = df["target"].values.astype(float)
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    model = _train_xgboost(X_scaled, y)
+    metrics = _compute_metrics(y, model.predict(X_scaled))
+    return model, scaler, metrics, y
+
+
 # =============================== PUBLIC API =================================
 
 def train_entity_model(scope, scope_id, history):
-    """Train and save an XGBoost model for a given scope (user/department/college).
-
-    Parameters
-    ----------
-    scope : str
-        One of "user", "department", "college".
-    scope_id : str
-        The MongoDB _id string for the user, department, or college.
-    history : list[dict]
-        Carbon entry documents to train on.
-
-    Returns
-    -------
-    dict
-        Training metrics (R², MAE, RMSE) and feature importance.
-        Returns fallback info if fewer than 3 entries.
-    """
-    # Not enough data to train — report fallback
-    if not history or len(history) < 3:
+    """Train and persist a scoped XGBoost model on transportation data."""
+    if not history or len(history) < TIER1_MAX + 1:
         return {
             "trained": False,
             "n_samples": len(history) if history else 0,
@@ -198,40 +284,18 @@ def train_entity_model(scope, scope_id, history):
             "featureImportance": {},
         }
 
-    # Convert history to feature matrix and target vector
-    df = _history_to_df(history)
-    X = df[FEATURE_COLS].values
-    y = df["target"].values.astype(float)
-
-    # Standardise features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Train XGBoost
-    model = _train_xgboost(X_scaled, y)
-    train_preds = model.predict(X_scaled)
-    metrics = _compute_metrics(y, train_preds)
-
-    # Build metadata
+    model, scaler, metrics, y = _fit(history)
+    importance = _feature_importance(model)
     meta = {
         "n_samples": len(y),
         "n_features": len(FEATURE_COLS),
+        "feature_schema": list(FEATURE_COLS),
         "metrics": metrics,
-        "version": "2.1.0",
+        "version": MODEL_VERSION,
         "scope": scope,
         "scope_id": scope_id,
+        "feature_importance": importance,
     }
-
-    # Extract feature importance from the trained model
-    importance = {}
-    if hasattr(model, "feature_importances_") and model.feature_importances_ is not None:
-        importance = {
-            FEATURE_COLS[i]: round(float(model.feature_importances_[i]), 4)
-            for i in range(len(FEATURE_COLS))
-        }
-    meta["feature_importance"] = importance
-
-    # Persist to disk (scoped path so user/dept/college models never collide)
     _save_model(model, scaler, meta, scope, scope_id)
 
     return {
@@ -244,77 +308,48 @@ def train_entity_model(scope, scope_id, history):
 
 
 def predict_with_model(scope, scope_id, latest_entry=None, n_days=7):
-    """Generate forecasts using a previously-trained model for the scope.
-
-    Parameters
-    ----------
-    scope : str
-    scope_id : str
-    latest_entry : dict or None
-        The most recent carbon entry (used as a base for the forecast).
-        If None, a default entry is used.
-    n_days : int
-        Number of days to forecast (default 7).
-
-    Returns
-    -------
-    dict with daily_forecast, next_week, next_month, confidence, prediction_intervals.
-    Returns a fallback if no trained model is found.
-    """
-    # Try to load a previously saved model for this scope
+    """Forecast using a previously-trained scoped model (Tier 3 path)."""
     model, scaler, meta = _load_model(scope, scope_id)
 
-    # No model exists yet — return zeros / minimal confidence
     if model is None:
-        avg = 15.0
-        if latest_entry:
-            avg = latest_entry.get("totalEmissions", latest_entry.get("total_emissions", 15.0))
+        avg = _transport_target(latest_entry) if latest_entry else 0.0
         return {
             "nextWeek": round(avg * 7, 2),
             "nextMonth": round(avg * 30, 2),
             "dailyForecast": [round(avg, 2)] * n_days,
             "confidence": 0.3,
             "method": "no_trained_model",
+            "tier": 0,
             "predictionIntervals": {"lower": 0, "upper": round(avg * 7, 2)},
         }
 
-    # Use the latest entry (or default) as the starting point for the forecast
     if latest_entry is None:
-        latest_entry = {"totalEmissions": 15.0}
+        latest_entry = {}
 
     latest_features = _extract_features(latest_entry)
-
-    # Calculate trend from the model's training data metrics (if available)
-    # A simple approach: use the latest data point and n_samples as a proxy
     n_samples = meta.get("n_samples", 7) if meta else 7
-    # Trend uses the mean of training targets vs current prediction
-    train_mean = meta.get("metrics", {}).get("mean_target", None)
 
     daily_forecast = []
     for i in range(n_days):
-        # Build feature vector for day i, shifting day_of_week forward
         feat = [latest_features[k] for k in FEATURE_COLS]
         feat[-1] = (feat[-1] + i) % 7
         X_pred = scaler.transform([feat])
-
-        # Predict and ensure non-negative
         pred = max(0, _safe_val(model.predict(X_pred)[0]))
         daily_forecast.append(round(pred, 2))
 
     next_week = round(sum(daily_forecast), 2)
     next_month = round(next_week * 4.3, 2)
-
-    # Confidence based on training residuals and sample count
     confidence = max(0.3, min(0.95, 0.5 + (n_samples / 100) * 0.4))
-
     margin = next_week * (1 - confidence)
+
     return {
         "nextWeek": next_week,
         "nextMonth": next_month,
         "dailyForecast": daily_forecast,
         "confidence": round(confidence, 2),
         "method": "xgboost_entity_model",
-        "modelVersion": meta.get("version", "unknown"),
+        "tier": 3,
+        "modelVersion": meta.get("version", MODEL_VERSION),
         "nSamples": n_samples,
         "predictionIntervals": {
             "lower": round(max(0, next_week - margin), 2),
@@ -324,101 +359,127 @@ def predict_with_model(scope, scope_id, latest_entry=None, n_days=7):
 
 
 def train_and_predict(history, scope="user", scope_id=None):
-    """Train on the given history and return predictions.
+    """Adaptive prediction entry point used by /predict.
 
-    This is the primary entry point used by the /predict endpoint.
-    For user scope, it trains on the user's history and saves a per-user model.
-    For department/college scopes, it trains on aggregated data and saves
-    an entity-level model.
-
-    Parameters
-    ----------
-    history : list[dict]
-    scope : str
-    scope_id : str
-
-    Returns
-    -------
-    dict with predictions, metrics, feature importance, etc.
+    Chooses the tier from available sample count (spec §17) and labels the
+    method honestly: rolling_average | hybrid | xgboost.
     """
-    # --- Train the model (or use fallback) ---
-    if not history or len(history) < 3:
-        avg = float(np.mean([e.get("totalEmissions", 0) for e in history])) if history else 15.0
+    n = len(history) if history else 0
+
+    # ---- Tier 1: statistical baseline ------------------------------------
+    if n == 0:
+        baseline = _rolling_baseline([], 7)
         return {
-            "nextWeek": round(avg * 7, 2),
-            "nextMonth": round(avg * 30, 2),
-            "dailyForecast": [round(avg, 2)] * 7,
-            "confidence": 0.5,
-            "method": "average_fallback",
+            **baseline,
+            "dailyForecast": [0.0] * 7,
+            "nextWeek": 0,
+            "nextMonth": 0,
+            "confidence": 0.3,
+            "method": "insufficient_data",
+            "tier": 0,
+            "scope": scope,
+            "scopeId": scope_id,
+            "trend": "unknown",
         }
 
-    df = _history_to_df(history)
-    X = df[FEATURE_COLS].values
-    y = df["target"].values.astype(float)
+    if n <= TIER1_MAX:
+        baseline = _rolling_baseline(history, 7)
+        return {
+            **baseline,
+            "confidence": 0.4,
+            "method": "rolling_average",
+            "tier": 1,
+            "methodNote": "Statistical rolling baseline (insufficient data for ML)",
+            "scope": scope,
+            "scopeId": scope_id,
+            "trend": "unknown",
+        }
 
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    model = _train_xgboost(X_scaled, y)
-    train_preds = model.predict(X_scaled)
-    metrics = _compute_metrics(y, train_preds)
-
+    # ---- Fit XGBoost (used by Tier 2 hybrid and Tier 3) -------------------
+    model, scaler, metrics, y = _fit(history)
+    importance = _feature_importance(model)
     meta = {
         "n_samples": len(y),
         "n_features": len(FEATURE_COLS),
+        "feature_schema": list(FEATURE_COLS),
         "metrics": metrics,
-        "version": "2.1.0",
+        "version": MODEL_VERSION,
         "scope": scope,
         "scope_id": scope_id,
+        "feature_importance": importance,
     }
+    # Persist only when there is enough data for a standalone model (Tier 3)
+    if n >= TIER2_MAX + 1:
+        _save_model(model, scaler, meta, scope, scope_id)
 
-    # Persist model with scope (critical for multi-tenant: user models never collide)
-    _save_model(model, scaler, meta, scope, scope_id)
-
-    # --- Predict next 7 days using latest features with a simple trend ---
     latest = _extract_features(history[0])
     recent_avg = _safe_val(np.mean(y[-7:]) if len(y) >= 7 else np.mean(y))
     trend_val = _safe_val((y[-1] - y[0]) / max(len(y), 1)) if len(y) > 1 else 0.0
 
-    daily_forecast = []
+    xgb_daily = []
     for i in range(7):
         feat = [latest[k] for k in FEATURE_COLS]
         feat[-1] = (feat[-1] + i) % 7
         X_pred = scaler.transform([feat])
         pred = max(0, _safe_val(model.predict(X_pred)[0]) - trend_val * i * 0.1)
-        daily_forecast.append(round(pred, 2))
+        xgb_daily.append(pred)
 
-    next_week = round(sum(daily_forecast), 2)
-    next_month = round(next_week * 4.3, 2)
-
-    # Confidence based on normalised prediction error
-    residuals = np.abs(y - train_preds)
+    residuals = np.abs(y - model.predict(scaler.transform(
+        pd.DataFrame([_extract_features(e) for e in history])[FEATURE_COLS].values)))
     std_residual = _safe_val(np.std(residuals)) if len(residuals) > 1 else 1.0
     mean_val = _safe_val(np.mean(y)) if len(y) > 0 else 1.0
     confidence = max(0.5, min(0.95, 1 - std_residual / (mean_val + 1e-6)))
 
-    # Feature importance
-    importance = {}
-    if hasattr(model, "feature_importances_") and model.feature_importances_ is not None:
-        importance = {
-            FEATURE_COLS[i]: round(float(model.feature_importances_[i]), 4)
-            for i in range(len(FEATURE_COLS))
+    trend_label = "decreasing" if trend_val < -0.1 else "increasing" if trend_val > 0.1 else "stable"
+
+    # ---- Tier 2: hybrid blend ---------------------------------------------
+    if n <= TIER2_MAX:
+        weight_ml = min(0.5, (n - TIER1_MAX) / (TIER2_MAX - TIER1_MAX) * 0.5)  # 0→0.5 as data grows
+        rolling_avg = _rolling_baseline(history, 7)["recentAverage"]
+        blended = [
+            round((1 - weight_ml) * rolling_avg + weight_ml * x, 2)
+            for x in xgb_daily
+        ]
+        next_week = round(sum(blended), 2)
+        return {
+            "nextWeek": next_week,
+            "nextMonth": round(next_week * 4.3, 2),
+            "dailyForecast": blended,
+            "confidence": round(confidence, 2),
+            "method": "hybrid",
+            "tier": 2,
+            "methodNote": f"Rolling baseline blended with XGBoost ({int(weight_ml * 100)}% ML weight)",
+            "scope": scope,
+            "scopeId": scope_id,
+            "modelVersion": MODEL_VERSION,
+            "metrics": metrics,
+            "featureImportance": importance,
+            "recentAverage": round(recent_avg, 2),
+            "trend": trend_label,
+            "predictionIntervals": {
+                "lower": round(max(0, next_week * confidence), 2),
+                "upper": round(next_week / max(confidence, 0.01), 2),
+            },
         }
 
+    # ---- Tier 3: full XGBoost ----------------------------------------------
+    daily_forecast = [round(p, 2) for p in xgb_daily]
+    next_week = round(sum(daily_forecast), 2)
     margin = next_week * (1 - confidence)
     return {
         "nextWeek": next_week,
-        "nextMonth": next_month,
+        "nextMonth": round(next_week * 4.3, 2),
         "dailyForecast": daily_forecast,
         "confidence": round(confidence, 2),
         "method": "xgboost",
+        "tier": 3,
         "scope": scope,
         "scopeId": scope_id,
-        "modelVersion": meta["version"],
+        "modelVersion": MODEL_VERSION,
         "metrics": metrics,
         "featureImportance": importance,
         "recentAverage": round(recent_avg, 2),
-        "trend": "decreasing" if trend_val < -0.1 else "increasing" if trend_val > 0.1 else "stable",
+        "trend": trend_label,
         "predictionIntervals": {
             "lower": round(max(0, next_week - margin), 2),
             "upper": round(next_week + margin, 2),

@@ -12,6 +12,13 @@ const facultyOnly = (req, res, next) => {
   if (req.user?.role !== 'faculty') {
     return res.status(403).json({ message: 'Faculty access required' });
   }
+  // Faculty is an organization role by definition. Without a college the scopes
+  // below would collapse to `{ collegeId: null }` — the tenancy of personal-mode
+  // users. (A null departmentId *is* legitimate here; the per-route guards
+  // answer 400 for that.)
+  if (!req.user.collegeId) {
+    return res.status(403).json({ message: 'Account is not attached to an organization' });
+  }
   next();
 };
 
@@ -40,28 +47,30 @@ router.get('/analytics/department', async (req, res) => {
       ? Math.round(students.reduce((acc, s) => acc + (s.gamification?.ecoScore || 50), 0) / students.length)
       : 50;
 
-    // Monthly category breakdown in department
-    const categoryTotals = await CarbonEntry.aggregate([
+    // Monthly mode breakdown in department.
+    // Previously summed breakdown.electricity/water/food/shopping/waste, which
+    // are structurally 0 on transportation-only entries — five dead slices.
+    // modeBreakdown holds the occupancy-allocated kg CO2 per travel mode.
+    const modeRows = await CarbonEntry.aggregate([
       { $match: { user: { $in: studentIds } } },
-      {
-        $group: {
-          _id: null,
-          transport: { $sum: '$breakdown.transport' },
-          electricity: { $sum: '$breakdown.electricity' },
-          water: { $sum: '$breakdown.water' },
-          food: { $sum: '$breakdown.food' },
-          shopping: { $sum: '$breakdown.shopping' },
-          waste: { $sum: '$breakdown.waste' },
-        }
-      }
+      { $project: { modes: { $objectToArray: { $ifNull: ['$modeBreakdown', {}] } } } },
+      { $unwind: '$modes' },
+      { $group: { _id: '$modes.k', kg: { $sum: '$modes.v' } } },
+      { $sort: { kg: -1 } },
     ]);
+
+    const categoryTotals = Object.fromEntries(
+      modeRows
+        .filter((r) => r._id && r.kg > 0)
+        .map((r) => [r._id, Math.round(r.kg * 100) / 100])
+    );
 
     res.json({
       departmentName: dept?.name || 'Assigned Department',
       studentCount: students.length,
       totalEmissions,
       avgEcoScore,
-      categoryTotals: categoryTotals[0] || {}
+      categoryTotals
     });
 
   } catch (error) {

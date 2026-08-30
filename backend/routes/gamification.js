@@ -72,10 +72,13 @@ router.post('/challenges/:id/complete', protect, async (req, res) => {
 });
 
 router.get('/leaderboard', protect, async (req, res) => {
-  const filter = { role: 'student' };
-  if (req.user.collegeId) {
-    filter.collegeId = req.user.collegeId;
-  }
+  // Leaderboards are scoped to the caller's own boundary: an organization member
+  // ranks against their college, a personal-mode user against the platform-wide
+  // personal pool. `collegeId: null` is an explicit filter value, not "no
+  // filter" — omitting it made every organization member visible to individuals.
+  const filter = req.user.collegeId
+    ? { role: { $in: ['student', 'individual'] }, collegeId: req.user.collegeId }
+    : { role: 'individual', collegeId: null };
   const users = await User.find(filter)
     .select('name gamification.ecoScore gamification.greenPoints gamification.streak')
     .sort({ 'gamification.greenPoints': -1 })

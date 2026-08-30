@@ -25,6 +25,7 @@ api.interceptors.response.use(
 
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
+  register: (data) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/profile', data),
   changePassword: (data) => api.post('/auth/change-password', data),
@@ -72,10 +73,25 @@ export const carbonAPI = {
   delete: (id) => api.delete(`/carbon/${id}`),
 };
 
+// Emission factors are resolved server-side (single source of truth); the
+// frontend only ever asks which factor applies.
+export const factorsAPI = {
+  resolve: (params) => api.get('/factors/resolve', { params }),
+  getModes: () => api.get('/factors/modes'),
+};
+
 export const simulatorAPI = {
   getScenarios: () => api.get('/simulator/scenarios'),
   simulate: (data) => api.post('/simulator/simulate', data),
   getHistory: () => api.get('/simulator/history'),
+};
+
+export const twinAPI = {
+  get: () => api.get('/twin'),
+  refresh: () => api.post('/twin/refresh'),
+  getReplacements: () => api.get('/twin/replacements'),
+  saveScenario: (data) => api.post('/twin/scenarios', data),
+  deleteScenario: (id) => api.delete(`/twin/scenarios/${id}`),
 };
 
 export const aiAPI = {
@@ -91,13 +107,6 @@ export const gamificationAPI = {
 
 export const reportsAPI = {
   downloadPDF: () => api.get('/reports/pdf', { responseType: 'blob' }),
-};
-
-export const adminAPI = {
-  getUsers: () => api.get('/admin/users'),
-  getAnalytics: () => api.get('/admin/analytics'),
-  deleteUser: (id) => api.delete('/admin/users/' + id),
-  exportData: () => api.get('/admin/export', { responseType: 'blob' }),
 };
 
 export default api;
