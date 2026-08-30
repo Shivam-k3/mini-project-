@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 
 const variants = {
@@ -9,6 +9,11 @@ const variants = {
 
 export default function PageTransition({ children }) {
   const location = useLocation();
+  const reduceMotion = useReducedMotion();
+
+  if (reduceMotion) {
+    return <div key={location.pathname}>{children}</div>;
+  }
 
   return (
     <AnimatePresence mode="wait">

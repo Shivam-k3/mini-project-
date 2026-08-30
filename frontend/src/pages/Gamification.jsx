@@ -2,7 +2,27 @@ import { useState, useEffect } from 'react';
 import { gamificationAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { GamificationSkeleton } from '../components/Skeleton';
-import { FiAward, FiZap, FiCheck, FiActivity } from 'react-icons/fi';
+import {
+  FiAward, FiZap, FiCheck, FiCheckCircle, FiActivity, FiStar, FiCalendar,
+  FiUsers, FiFeather, FiTrendingDown, FiNavigation, FiShield, FiSun,
+} from 'react-icons/fi';
+
+const BADGE_ICONS = {
+  'first_entry': FiFeather,
+  'week_streak': FiCalendar,
+  'month_streak': FiStar,
+  'eco_hero': FiAward,
+  'carbon_cut': FiTrendingDown,
+  'green_commuter': FiNavigation,
+  'eco_warrior': FiShield,
+  'challenge_champ': FiAward,
+  'solar_pioneer': FiSun,
+};
+
+function BadgeIcon({ id }) {
+  const Icon = BADGE_ICONS[id] || FiAward;
+  return <Icon size={18} />;
+}
 
 export default function Gamification() {
   const [stats, setStats] = useState(null);
@@ -25,7 +45,7 @@ export default function Gamification() {
   const completeChallenge = async (id) => {
     try {
       const { data } = await gamificationAPI.completeChallenge(id);
-      toast.success(`+${data.pointsEarned} Green Points earned! ${data.badge ? '🏅 New Badge unlocked!' : ''}`);
+      toast.success(`+${data.pointsEarned} Green Points earned!${data.badge ? ' New Badge unlocked!' : ''}`);
       const [s, c] = await Promise.all([gamificationAPI.getStats(), gamificationAPI.getChallenges()]);
       setStats(s.data);
       setChallenges(c.data);
@@ -38,77 +58,79 @@ export default function Gamification() {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      
+
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Eco Achievements & Challenges</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Earn points, unlock milestone badges, and benchmark your progress in the community.</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-eco-700 dark:text-eco-400">Personal Mobility Intelligence</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-ink-900 dark:text-white mt-1">Eco Achievements & Challenges</h1>
+        <p className="text-ink-500 dark:text-ink-400 mt-1">Earn points, unlock milestone badges, and benchmark your progress in the community.</p>
       </div>
 
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card flex items-center gap-4 p-5">
-          <div className="w-12 h-12 rounded-2xl bg-eco-500/10 text-eco-500 flex items-center justify-center text-2xl shrink-0">
-            🌟
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="stat-card">
+          <div className="flex w-full items-center justify-between gap-3">
+            <p className="kpi-label !mt-0">Eco Score</p>
+            <span className="w-9 h-9 rounded-lg bg-eco-100 text-eco-700 dark:bg-eco-500/15 dark:text-eco-300 flex items-center justify-center shrink-0">
+              <FiStar size={16} />
+            </span>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Eco Score</p>
-            <p className="text-2xl font-black text-gray-800 dark:text-white mt-0.5">{stats?.ecoScore || 0}</p>
-          </div>
+          <p className="kpi-value">{stats?.ecoScore || 0}</p>
         </div>
-        <div className="glass-card flex items-center gap-4 p-5">
-          <div className="w-12 h-12 rounded-2xl bg-ocean-500/10 text-ocean-500 flex items-center justify-center text-2xl shrink-0">
-            💚
+        <div className="stat-card">
+          <div className="flex w-full items-center justify-between gap-3">
+            <p className="kpi-label !mt-0">Green Points Balance</p>
+            <span className="w-9 h-9 rounded-lg bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300 flex items-center justify-center shrink-0">
+              <FiZap size={16} />
+            </span>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Green Points Balance</p>
-            <p className="text-2xl font-black text-gray-800 dark:text-white mt-0.5">{stats?.greenPoints || 0}</p>
-          </div>
+          <p className="kpi-value">{stats?.greenPoints || 0}</p>
         </div>
-        <div className="glass-card flex items-center gap-4 p-5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-2xl shrink-0">
-            🔥
+        <div className="stat-card">
+          <div className="flex w-full items-center justify-between gap-3">
+            <p className="kpi-label !mt-0">Daily Logging Streak</p>
+            <span className="w-9 h-9 rounded-lg bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300 flex items-center justify-center shrink-0">
+              <FiCalendar size={16} />
+            </span>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Daily Logging Streak</p>
-            <p className="text-2xl font-black text-gray-800 dark:text-white mt-0.5">{stats?.streak || 0} days</p>
-          </div>
+          <p className="kpi-value">
+            {stats?.streak || 0}
+            <span className="text-sm font-medium text-ink-400 ml-1">days</span>
+          </p>
         </div>
       </div>
 
       {/* Main Grid: Challenges (Left 7 cols) vs Leaderboard & Badges (Right 5 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Left Side: Weekly Challenges */}
         <div className="lg:col-span-7 space-y-6">
-          
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-1.5">
-              <FiActivity className="text-eco-500" /> Active Weekly Challenges
+
+          <div className="card">
+            <h3 className="section-label !mb-5 flex items-center gap-1.5">
+              <FiActivity className="text-eco-600 dark:text-eco-400" /> Active Weekly Challenges
             </h3>
-            
+
             <div className="space-y-3">
               {challenges.map((c) => (
-                <div key={c._id} className="flex items-center justify-between p-4 rounded-2xl border border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-gray-900/40 hover:bg-white/80 dark:hover:bg-gray-900/85 transition-all">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-gray-800 dark:text-white leading-normal">{c.title}</h4>
-                      <span className="text-[9px] bg-eco-500/10 text-eco-600 dark:text-eco-400 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                        {c.category}
-                      </span>
+                <div key={c._id} className="flex items-center justify-between gap-4 p-4 rounded-xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 hover:bg-ink-50 dark:hover:bg-ink-800/40 transition-colors">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-xs font-bold text-ink-900 dark:text-white leading-normal">{c.title}</h4>
+                      <span className="badge badge-eco">{c.category}</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 leading-normal max-w-md">{c.description}</p>
-                    <span className="text-[10px] text-eco-500 font-semibold mt-1 block">+{c.points} Green Points</span>
+                    <p className="text-[11px] text-ink-500 dark:text-ink-400 leading-normal max-w-md">{c.description}</p>
+                    <span className="text-[10px] text-eco-600 dark:text-eco-400 font-semibold mt-1 block">+{c.points} Green Points</span>
                   </div>
-                  
+
                   {c.completed ? (
-                    <span className="w-8 h-8 rounded-full bg-eco-500/10 text-eco-600 flex items-center justify-center font-bold text-xs shrink-0 select-none">
-                      <FiCheck />
+                    <span className="w-8 h-8 rounded-full bg-eco-100 text-eco-700 dark:bg-eco-500/15 dark:text-eco-300 flex items-center justify-center shrink-0 select-none">
+                      <FiCheckCircle size={16} />
                     </span>
                   ) : (
-                    <button 
-                      onClick={() => completeChallenge(c._id)} 
-                      className="btn-primary py-1.5 px-3 text-xs font-bold select-none"
+                    <button
+                      onClick={() => completeChallenge(c._id)}
+                      className="btn-accent py-1.5 px-3 text-xs font-bold select-none whitespace-nowrap"
                     >
                       Complete
                     </button>
@@ -119,24 +141,30 @@ export default function Gamification() {
           </div>
 
           {/* Badges Achievements */}
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-1.5">
-              <FiAward className="text-purple-500" /> Milestone Badges
+          <div className="card">
+            <h3 className="section-label !mb-5 flex items-center gap-1.5">
+              <FiAward className="text-eco-600 dark:text-eco-400" /> Milestone Badges
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {(stats?.allBadges || []).map((badge) => {
                 const earned = stats?.badges?.includes(badge.id);
                 return (
-                  <div key={badge.id} className={`p-4 rounded-2xl text-center border transition-all duration-500 flex flex-col justify-between min-h-[130px] ${
-                    earned 
-                      ? 'bg-eco-500/5 border-eco-500/30 text-gray-800 dark:text-white shadow-md shadow-eco-500/[0.02]' 
-                      : 'bg-gray-100/50 dark:bg-gray-900/10 border-gray-200/50 dark:border-white/5 opacity-40'
+                  <div key={badge.id} className={`p-4 rounded-xl text-center border flex flex-col justify-between min-h-[130px] ${
+                    earned
+                      ? 'border-eco-200 bg-eco-50 dark:border-eco-800 dark:bg-eco-950/40'
+                      : 'border-ink-200 bg-ink-50 dark:border-ink-800 dark:bg-ink-950/40 opacity-45'
                   }`}>
                     <div>
-                      <p className="text-3xl mb-2 filter drop-shadow-sm select-none">{badge.icon}</p>
-                      <p className="font-bold text-[11px] leading-tight">{badge.name}</p>
+                      <span className={`w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2 select-none ${
+                        earned
+                          ? 'bg-eco-100 text-eco-700 dark:bg-eco-500/15 dark:text-eco-300'
+                          : 'bg-ink-100 text-ink-400 dark:bg-ink-800 dark:text-ink-500'
+                      }`}>
+                        <BadgeIcon id={badge.id} />
+                      </span>
+                      <p className={`font-bold text-[11px] leading-tight ${earned ? 'text-ink-900 dark:text-white' : 'text-ink-500 dark:text-ink-400'}`}>{badge.name}</p>
                     </div>
-                    <p className="text-[9px] text-gray-400 leading-normal mt-1">{badge.description}</p>
+                    <p className="text-[9px] text-ink-400 leading-normal mt-1">{badge.description}</p>
                   </div>
                 );
               })}
@@ -147,28 +175,28 @@ export default function Gamification() {
 
         {/* Right Side: Leaderboard */}
         <div className="lg:col-span-5">
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-1.5">
-              <FiAward className="text-amber-500" /> Community Leaderboard
+          <div className="card">
+            <h3 className="section-label !mb-5 flex items-center gap-1.5">
+              <FiUsers className="text-warn-500" /> Community Leaderboard
             </h3>
-            
+
             <div className="space-y-2.5">
               {leaderboard.map((u) => {
                 const isTopThree = u.rank <= 3;
                 return (
-                  <div key={u.rank} className="flex items-center justify-between p-3 rounded-xl border border-gray-200/30 dark:border-white/[0.02] bg-white/40 dark:bg-gray-900/30 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all">
-                    <div className="flex items-center gap-3">
+                  <div key={u.rank} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 hover:bg-ink-50 dark:hover:bg-ink-800/40 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
                       <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black select-none ${
-                        u.rank === 1 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
-                        u.rank === 2 ? 'bg-gray-150 dark:bg-gray-800/30 text-gray-600 dark:text-gray-400' :
-                        u.rank === 3 ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' : 'bg-gray-50 dark:bg-gray-900/50 text-gray-400'
+                        u.rank === 1 ? 'bg-warn-100 text-warn-700 dark:bg-warn-500/15 dark:text-warn-300' :
+                        u.rank === 2 ? 'bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300' :
+                        u.rank === 3 ? 'bg-ocean-100 text-ocean-700 dark:bg-ocean-500/15 dark:text-ocean-300' : 'bg-ink-100 text-ink-500 dark:bg-ink-800 dark:text-ink-400'
                       }`}>
                         {u.rank}
                       </span>
-                      <span className="text-xs font-bold text-gray-800 dark:text-white">{u.name}</span>
+                      <span className="text-xs font-bold text-ink-900 dark:text-white truncate">{u.name}</span>
                     </div>
-                    <div className="text-[10px] text-gray-400 font-semibold">
-                      <span className="text-eco-500">{u.greenPoints}</span> pts · <span className="text-ocean-500">Score {u.ecoScore}</span>
+                    <div className="text-[10px] text-ink-500 dark:text-ink-400 font-semibold whitespace-nowrap">
+                      <span className="text-eco-600 dark:text-eco-400">{u.greenPoints}</span> pts · <span className="text-ocean-600 dark:text-ocean-400">Score {u.ecoScore}</span>
                     </div>
                   </div>
                 );

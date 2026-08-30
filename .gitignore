@@ -13,3 +13,6 @@ ml-service/models/
 *.pkl
 *.out.txt
 *.err.txt
+
+.agents/
+skills-lock.json

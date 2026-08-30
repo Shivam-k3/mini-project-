@@ -17,6 +17,7 @@ import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import ExplainableAI from './pages/ExplainableAI';
+import Twin from './pages/Twin';
 import Landing from './pages/Landing';
 import Legal from './pages/Legal';
 
@@ -44,6 +45,9 @@ function AppLayout() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/explainable-ai" element={
             <ProtectedRoute allowedRoles={['student', 'individual']}><ExplainableAI /></ProtectedRoute>
+          } />
+          <Route path="/twin" element={
+            <ProtectedRoute allowedRoles={PERSONAL_TOOLS}><Twin /></ProtectedRoute>
           } />
           <Route path="/admin" element={
             <ProtectedRoute allowedRoles={['super_admin', 'college_admin']}><Admin /></ProtectedRoute>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { carbonAPI } from '../services/api';
 import { ShapBarChart } from '../components/Charts';
 import { ExplainableAISkeleton } from '../components/Skeleton';
-import { FiCpu, FiInfo, FiActivity, FiTrendingUp, FiClock } from 'react-icons/fi';
+import { FiCpu, FiInfo, FiActivity, FiTrendingUp, FiClock, FiZap } from 'react-icons/fi';
 
 function formatRelativeTime(date) {
   if (!date) return '';
@@ -47,15 +47,16 @@ export default function ExplainableAI() {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      
+
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Explainable AI Hub</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
+        <p className="section-label">Explainable AI</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink-900 dark:text-white tracking-tight">Explainable AI Hub</h1>
+        <p className="text-sm text-ink-500 dark:text-ink-400 mt-1.5 flex flex-wrap items-center gap-2">
           Transparent Shapley value attribution and emission source analysis for your carbon footprint.
           {fetchedAt && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 ml-2">
-              <FiClock size={10} /> Updated {formatRelativeTime(fetchedAt)}
+            <span className="badge badge-neutral">
+              <FiClock size={12} /> Updated {formatRelativeTime(fetchedAt)}
             </span>
           )}
         </p>
@@ -63,40 +64,40 @@ export default function ExplainableAI() {
 
       {/* Narrative & Confidence Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left: Narrative reasoning (8 cols) */}
-        <div className="lg:col-span-8 glass-card p-6 flex flex-col justify-between min-h-[300px]">
+        <div className="lg:col-span-8 card flex flex-col justify-between min-h-[300px]">
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                🤖 AI Attribution Analysis
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-[11px] font-bold text-ink-500 dark:text-ink-400 uppercase tracking-wider flex items-center gap-2">
+                <FiCpu size={14} className="text-eco-600 dark:text-eco-400" /> AI Attribution Analysis
               </h3>
-              <span className="text-[10px] bg-eco-500/10 text-eco-600 dark:text-eco-400 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
+              <span className="badge badge-blue">
                 {method === 'shap_tree_explainer' ? 'SHAP TreeExplainer' : 'Composition Analysis'}
               </span>
             </div>
-            <div className="p-5 bg-white/40 dark:bg-gray-900/40 rounded-2xl border border-gray-200/50 dark:border-white/5 leading-relaxed text-sm text-gray-700 dark:text-gray-300">
+            <div className="p-5 rounded-xl border border-ink-200 bg-surface-2 leading-relaxed text-sm text-ink-700 dark:border-ink-800 dark:bg-ink-950/40 dark:text-ink-200">
               <p>{explanation}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="p-3.5 bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5 rounded-xl">
-              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Primary Driver</p>
-              <p className="font-bold text-xs text-gray-800 dark:text-white mt-1 capitalize">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+            <div className="rounded-lg border border-ink-200 bg-ink-50 p-4 dark:border-ink-800 dark:bg-ink-950/40">
+              <p className="kpi-label">Primary Driver</p>
+              <p className="mt-1 text-sm font-bold text-ink-900 dark:text-white capitalize">
                 {primaryDriver || '—'}
               </p>
-              {primaryPct && <p className="text-[10px] text-eco-600 dark:text-eco-400 mt-0.5 font-semibold">{primaryPct}% of total</p>}
+              {primaryPct && <p className="mt-0.5 text-[11px] font-semibold text-eco-600 dark:text-eco-400">{primaryPct}% of total</p>}
             </div>
-            <div className="p-3.5 bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5 rounded-xl">
-              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Secondary Driver</p>
-              <p className="font-bold text-xs text-gray-800 dark:text-white mt-1 capitalize">
+            <div className="rounded-lg border border-ink-200 bg-ink-50 p-4 dark:border-ink-800 dark:bg-ink-950/40">
+              <p className="kpi-label">Secondary Driver</p>
+              <p className="mt-1 text-sm font-bold text-ink-900 dark:text-white capitalize">
                 {secondaryDriver || '—'}
               </p>
             </div>
-            <div className="p-3.5 bg-gray-100/50 dark:bg-gray-900/50 border border-gray-200/50 dark:border-white/5 rounded-xl">
-              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Analysis Method</p>
-              <p className="font-bold text-xs text-eco-500 mt-1">
+            <div className="rounded-lg border border-ink-200 bg-ink-50 p-4 dark:border-ink-800 dark:bg-ink-950/40">
+              <p className="kpi-label">Analysis Method</p>
+              <p className="mt-1 text-sm font-bold text-eco-600 dark:text-eco-400">
                 {method === 'shap_tree_explainer' ? 'SHAP (Model-Based)' : 'Composition (Data-Driven)'}
               </p>
             </div>
@@ -104,32 +105,26 @@ export default function ExplainableAI() {
         </div>
 
         {/* Right: Confidence Score Gauge (4 cols) */}
-        <div className="lg:col-span-4 glass-card p-6 flex flex-col items-center justify-center text-center min-h-[300px]">
-          <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Prediction Confidence</h3>
+        <div className="lg:col-span-4 card flex flex-col items-center justify-center text-center min-h-[300px]">
+          <h3 className="section-label mb-4">Prediction Confidence</h3>
           <div className="relative w-40 h-40">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" className="text-gray-100 dark:text-gray-800" strokeWidth="8" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" className="text-ink-100 dark:text-ink-800" strokeWidth="8" />
               <circle
                 cx="50" cy="50" r="40" fill="none"
-                stroke="url(#confGrad)" strokeWidth="8" strokeLinecap="round"
+                stroke="currentColor" strokeWidth="8" strokeLinecap="round"
                 strokeDasharray={`${(confidence || 0.5) * 251} 251`}
-                className="transition-all duration-1000 ease-out"
+                className="text-eco-500 dark:text-eco-400 transition-all duration-1000 ease-out"
               />
-              <defs>
-                <linearGradient id="confGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#0ea5e9" />
-                </linearGradient>
-              </defs>
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-black text-gray-800 dark:text-white tracking-tight leading-none">
+              <span className="kpi-value">
                 {confidence ? Math.round(confidence * 100) : '—'}
               </span>
-              <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">Confidence</span>
+              <span className="kpi-label mt-1">Confidence</span>
             </div>
           </div>
-          <p className="text-[11px] text-gray-400 leading-normal mt-4">
+          <p className="text-[11px] text-ink-500 leading-normal mt-4">
             {confidence
               ? confidence >= 0.7
                 ? 'Reliable prediction based on sufficient historical data.'
@@ -139,7 +134,7 @@ export default function ExplainableAI() {
               : 'Log entries to calculate prediction confidence.'}
           </p>
           {predictionIntervals && (
-            <div className="flex gap-4 mt-3 text-[10px] text-gray-400 font-medium">
+            <div className="flex gap-4 mt-3 text-[11px] text-ink-500 font-medium">
               <span>Lower: {predictionIntervals.lower} kg</span>
               <span>Upper: {predictionIntervals.upper} kg</span>
             </div>
@@ -150,53 +145,53 @@ export default function ExplainableAI() {
 
       {/* SHAP Chart & Recommendations Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Left: SHAP contributions (7 cols) */}
-        <div className="lg:col-span-7 glass-card p-6">
+        <div className="lg:col-span-7 card">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Emission Contributions by Category</h3>
-            <FiInfo className="text-gray-400 hover:text-gray-600 cursor-help" />
+            <h3 className="section-label mb-0">Emission Contributions by Category</h3>
+            <FiInfo className="text-ink-400 cursor-help" />
           </div>
           {Object.keys(contributions).length > 0 ? (
             <div className="h-[240px]">
               <ShapBarChart contributions={contributions} />
             </div>
           ) : (
-            <p className="text-gray-400 text-center py-20 text-sm">Log carbon entries to visualize contributions.</p>
+            <p className="text-ink-400 text-center py-20 text-sm">Log carbon entries to visualize contributions.</p>
           )}
         </div>
 
         {/* Right: Recommendations (5 cols) */}
-        <div className="lg:col-span-5 glass-card p-6">
-          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-6">
-            <FiActivity className="inline text-eco-500 mr-1.5" /> Recommendations
+        <div className="lg:col-span-5 card">
+          <h3 className="section-label mb-5 flex items-center gap-1.5">
+            <FiActivity size={14} className="text-eco-600 dark:text-eco-400" /> Recommendations
           </h3>
           {recommendations.length > 0 ? (
             <div className="space-y-3">
               {recommendations.map((rec, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-gray-900/40">
-                  <div className="w-8 h-8 rounded-xl bg-eco-500/10 text-eco-500 flex items-center justify-center text-sm shrink-0 mt-0.5">
-                    💡
+                <div key={i} className="flex items-start gap-3 rounded-lg border border-ink-200 bg-ink-50 p-3 dark:border-ink-800 dark:bg-ink-950/40">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-eco-50 text-eco-600 dark:bg-eco-500/15 dark:text-eco-400 mt-0.5">
+                    <FiZap size={15} />
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{rec}</p>
+                  <p className="text-xs text-ink-700 dark:text-ink-200 leading-relaxed mt-1">{rec}</p>
                 </div>
               ))}
             </div>
           ) : (
             <div className="space-y-3">
               {topFactors.slice(0, 3).map((f, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-gray-900/40">
-                  <div className="w-8 h-8 rounded-xl bg-eco-500/10 text-eco-500 flex items-center justify-center text-sm shrink-0 mt-0.5">
-                    💡
+                <div key={i} className="flex items-start gap-3 rounded-lg border border-ink-200 bg-ink-50 p-3 dark:border-ink-800 dark:bg-ink-950/40">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-eco-50 text-eco-600 dark:bg-eco-500/15 dark:text-eco-400 mt-0.5">
+                    <FiTrendingUp size={15} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800 dark:text-white capitalize mb-0.5">{f.name}</p>
-                    <p className="text-[11px] text-gray-400">{f.percentage}% of total emissions</p>
+                    <p className="text-xs font-bold text-ink-900 dark:text-white capitalize mb-0.5">{f.name}</p>
+                    <p className="text-[11px] text-ink-400">{f.percentage}% of total emissions</p>
                   </div>
                 </div>
               ))}
               {topFactors.length === 0 && (
-                <p className="text-gray-400 text-center py-8 text-sm">No recommendations yet. Log your first carbon entry.</p>
+                <p className="text-ink-400 text-center py-8 text-sm">No recommendations yet. Log your first carbon entry.</p>
               )}
             </div>
           )}
@@ -206,25 +201,25 @@ export default function ExplainableAI() {
 
       {/* Model Feature Importance (only when SHAP model is available) */}
       {modelImportance && (
-        <div className="glass-card p-6">
-          <h3 className="text-xs font-bold text-eco-600 dark:text-eco-400 uppercase tracking-wider mb-3">ML Model Feature Importance</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+        <div className="card">
+          <h3 className="section-label mb-3">ML Model Feature Importance</h3>
+          <p className="text-xs text-ink-500 dark:text-ink-400 mb-4 leading-relaxed">
             The XGBoost model considers these features most influential when predicting your future emissions.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {Object.entries(modelImportance)
               .sort((a, b) => b[1] - a[1])
               .map(([feature, importance]) => (
-                <div key={feature} className="p-3 rounded-xl bg-gray-100/50 dark:bg-gray-900/30 border border-gray-200/50 dark:border-white/5">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider truncate">{feature.replace(/_/g, ' ')}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <div className="flex-1 h-1.5 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                <div key={feature} className="rounded-lg border border-ink-200 bg-ink-50 p-3 dark:border-ink-800 dark:bg-ink-950/40">
+                  <p className="text-[10px] text-ink-400 font-bold uppercase tracking-wider truncate">{feature.replace(/_/g, ' ')}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="progress-track flex-1">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-eco-500 to-ocean-500"
+                        className="progress-fill"
                         style={{ width: `${(importance / Math.max(...Object.values(modelImportance))) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[11px] font-bold text-gray-800 dark:text-white">{importance.toFixed(3)}</span>
+                    <span className="text-[11px] font-bold text-ink-900 dark:text-white">{importance.toFixed(3)}</span>
                   </div>
                 </div>
               ))}

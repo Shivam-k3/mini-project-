@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiNavigation, FiArrowRight } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function Register() {
@@ -36,28 +36,33 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 bg-mesh p-4">
-      <div className="glass-card w-full max-w-md animate-slide-up border border-white/20 dark:border-white/5 rounded-3xl p-8">
-        
+    <main className="min-h-screen bg-surface-1 dark:bg-ink-950 flex items-center justify-center p-4">
+      <section className="card w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-eco-400 to-ocean-500 flex items-center justify-center text-white text-xl mx-auto mb-4 shadow-md">
-            🌱
+        <header className="text-center mb-8">
+          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-eco-600 text-white">
+            <FiNavigation size={24} aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Create your free account</h1>
-          <p className="text-xs text-gray-400 mt-1 font-medium">Personal mobility tracking — no organization required</p>
-        </div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-eco-700 dark:text-eco-400">
+            Personal Mobility Intelligence
+          </p>
+          <h1 className="text-2xl font-bold text-ink-900 dark:text-white">Create your account</h1>
+          <p className="mt-1 text-xs font-medium text-ink-400 dark:text-ink-500">
+            An individual account for tracking your personal mobility &amp; emissions
+          </p>
+        </header>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Full Name</label>
+            <label className="input-label">Full Name</label>
             <div className="relative">
-              <FiUser className="absolute left-4 top-3.5 text-gray-400" />
+              <FiUser className="absolute left-3.5 top-3.5 text-ink-400 dark:text-ink-500" />
               <input
                 type="text"
-                className="input-field pl-11"
+                className="input-field pl-10"
                 placeholder="John Doe"
+                aria-label="Full Name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
@@ -66,13 +71,14 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Email address</label>
+            <label className="input-label">Email address</label>
             <div className="relative">
-              <FiMail className="absolute left-4 top-3.5 text-gray-400" />
+              <FiMail className="absolute left-3.5 top-3.5 text-ink-400 dark:text-ink-500" />
               <input
                 type="email"
-                className="input-field pl-11"
+                className="input-field pl-10"
                 placeholder="you@example.com"
+                aria-label="Email address"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
@@ -81,32 +87,39 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Password</label>
+            <label className="input-label">Password</label>
             <div className="relative">
-              <FiLock className="absolute left-4 top-3.5 text-gray-400" />
+              <FiLock className="absolute left-3.5 top-3.5 text-ink-400 dark:text-ink-500" />
               <input
                 type={showPass ? 'text' : 'password'}
-                className="input-field pl-11 pr-11"
+                className="input-field pl-10 pr-11"
                 placeholder="Min 6 characters"
+                aria-label="Password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
                 minLength={6}
               />
-              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600 transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute right-3.5 top-3 text-ink-400 hover:text-ink-600 dark:hover:text-ink-200 transition-colors"
+                aria-label={showPass ? 'Hide password' : 'Show password'}
+              >
                 {showPass ? <FiEyeOff size={16} /> : <FiEye size={16} />}
               </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Confirm Password</label>
+            <label className="input-label">Confirm Password</label>
             <div className="relative">
-              <FiLock className="absolute left-4 top-3.5 text-gray-400" />
+              <FiLock className="absolute left-3.5 top-3.5 text-ink-400 dark:text-ink-500" />
               <input
                 type={showPass ? 'text' : 'password'}
-                className="input-field pl-11"
+                className="input-field pl-10"
                 placeholder="Confirm password"
+                aria-label="Confirm Password"
                 value={form.confirm}
                 onChange={(e) => setForm({ ...form, confirm: e.target.value })}
                 required
@@ -114,18 +127,19 @@ export default function Register() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-3 mt-2">
-            {loading ? 'Creating account...' : 'Create Account'}
+          <button type="submit" disabled={loading} className="btn-primary mt-2 w-full py-3">
+            {loading ? 'Creating account...' : <>Create Account <FiArrowRight size={16} /></>}
           </button>
         </form>
 
         {/* Footer info */}
-        <p className="text-center mt-6 text-xs text-gray-400 font-medium">
+        <p className="mt-6 text-center text-xs font-medium text-ink-400 dark:text-ink-500">
           Already have an account?{' '}
-          <Link to="/login" className="text-eco-600 hover:text-eco-500 font-semibold transition-colors">Sign In</Link>
+          <Link to="/login" className="font-semibold text-eco-600 hover:text-eco-500 dark:text-eco-400 dark:hover:text-eco-300 transition-colors">
+            Sign In
+          </Link>
         </p>
-
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
