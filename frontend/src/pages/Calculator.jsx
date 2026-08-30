@@ -2,23 +2,25 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { carbonAPI, factorsAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { FiPlus, FiTrash2, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiCheckCircle, FiCheck, FiMapPin, FiUsers, FiSettings, FiClipboard, FiTruck, FiZap, FiMove, FiNavigation, FiSend, FiActivity } from 'react-icons/fi';
 import { formatMode } from '../utils/modeLabels';
 import { factorRequestFor, factorKey, resolveFactor } from '../utils/factorResolution';
 
-// Presentation only — labels and icons for the mode selector. Emission factors,
-// occupancy rules and fuel/grid constants all come from the backend resolver
-// (GET /api/factors/resolve); this page deliberately holds no factor table.
+// Presentation only — labels and Feather icons for the mode selector. Emission
+// factors, occupancy rules and fuel/grid constants all come from the backend
+// resolver (GET /api/factors/resolve); this page deliberately holds no factor
+// table. Icons render inline where a mode is shown; the <select> options use
+// plain text labels only.
 const MODE_OPTIONS = [
-  { value: 'car', label: 'Car', icon: '🚗' },
-  { value: 'ev', label: 'Electric Vehicle', icon: '⚡' },
-  { value: 'motorcycle', label: 'Motorcycle / Scooter', icon: '🏍️' },
-  { value: 'auto_rickshaw', label: 'Auto-rickshaw', icon: '🛺' },
-  { value: 'bus', label: 'Bus', icon: '🚌' },
-  { value: 'metro', label: 'Metro / Rail', icon: '🚇' },
-  { value: 'flight', label: 'Flight', icon: '✈️' },
-  { value: 'bicycle', label: 'Bicycle', icon: '🚲' },
-  { value: 'walk', label: 'Walk', icon: '🚶' },
+  { value: 'car', label: 'Car', icon: FiTruck },
+  { value: 'ev', label: 'Electric Vehicle', icon: FiZap },
+  { value: 'motorcycle', label: 'Motorcycle / Scooter', icon: FiMove },
+  { value: 'auto_rickshaw', label: 'Auto-rickshaw', icon: FiTruck },
+  { value: 'bus', label: 'Bus', icon: FiTruck },
+  { value: 'metro', label: 'Metro / Rail', icon: FiNavigation },
+  { value: 'flight', label: 'Flight', icon: FiSend },
+  { value: 'bicycle', label: 'Bicycle', icon: FiActivity },
+  { value: 'walk', label: 'Walk', icon: FiMapPin },
 ];
 
 const PURPOSES = ['commute', 'college', 'office', 'school', 'personal', 'other'];
@@ -47,7 +49,7 @@ const r2 = (x) => Math.round(x * 100) / 100;
 function FactorBadge({ factor, pending, compact = false }) {
   if (!factor) {
     return pending
-      ? <p className="text-[10px] text-gray-400 italic">Resolving emission factor…</p>
+      ? <p className="text-[10px] italic text-ink-400 dark:text-ink-500">Resolving emission factor…</p>
       : null;
   }
 
@@ -55,32 +57,32 @@ function FactorBadge({ factor, pending, compact = false }) {
 
   if (compact) {
     return (
-      <p className="text-[10px] text-gray-400" title={factor.methodology}>
-        <span className="font-bold text-gray-500 dark:text-gray-300">{value}</span>
+      <p className="text-[10px] text-ink-400 dark:text-ink-500" title={factor.methodology}>
+        <span className="font-bold text-ink-600 dark:text-ink-300">{value}</span>
         {' · '}{factor.factorLevelLabel}
       </p>
     );
   }
 
   return (
-    <div className="p-2.5 rounded-xl bg-white/60 dark:bg-gray-900/30 border border-gray-200/60 dark:border-white/5 space-y-1">
+    <div className="p-2.5 rounded-lg border border-ink-200 dark:border-ink-800 bg-surface-2 dark:bg-ink-900 space-y-1">
       <div className="flex justify-between text-[11px]">
-        <span className="text-gray-400">Emission factor</span>
-        <span className="font-black text-eco-600 dark:text-eco-400">{value}</span>
+        <span className="text-ink-400 dark:text-ink-500">Emission factor</span>
+        <span className="font-bold text-eco-600 dark:text-eco-400">{value}</span>
       </div>
       <div className="flex justify-between text-[10px]">
-        <span className="text-gray-400">Source</span>
-        <span className="font-bold text-gray-500 dark:text-gray-300">{factor.factorLevelLabel}</span>
+        <span className="text-ink-400 dark:text-ink-500">Source</span>
+        <span className="font-bold text-ink-600 dark:text-ink-300">{factor.factorLevelLabel}</span>
       </div>
       {factor.methodology && (
-        <p className="text-[10px] text-gray-400 leading-snug">
+        <p className="text-[10px] text-ink-400 dark:text-ink-500 leading-snug">
           <span className="font-bold">Method:</span> {factor.methodology}
         </p>
       )}
       {factor.factorSource && (
-        <p className="text-[9px] text-gray-400 leading-snug">
+        <p className="text-[9px] text-ink-400 dark:text-ink-500 leading-snug">
           {factor.sourceUrl ? (
-            <a href={factor.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-eco-500">
+            <a href={factor.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-eco-600 dark:hover:text-eco-400">
               {factor.factorSource}
             </a>
           ) : factor.factorSource}
@@ -251,31 +253,32 @@ export default function Calculator() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
 
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Trip Logger</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-eco-700 dark:text-eco-400">Personal Mobility Intelligence</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink-900 dark:text-white">Trip Logger</h1>
+        <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
           Log today&apos;s travel — emissions are allocated per person for shared rides
         </p>
       </div>
 
       {/* Progress Tracker */}
-      <div className="glass p-4 rounded-2xl flex items-center justify-between border border-gray-200/50 dark:border-white/5">
+      <div className="card flex items-center justify-between p-4">
         {stepsList.map((s, index) => (
           <div key={s.num} className="flex items-center gap-2 flex-1 last:flex-initial">
-            <div className={`w-8 h-8 rounded-xl font-bold text-xs flex items-center justify-center transition-all ${
-              step === s.num ? 'bg-eco-500 text-white ring-4 ring-eco-500/20' :
-              step > s.num ? 'bg-eco-500/10 text-eco-600 dark:text-eco-400' : 'bg-gray-150 dark:bg-gray-800/40 text-gray-400'
+            <div className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center transition-colors ${
+              step === s.num ? 'bg-eco-600 text-white' :
+              step > s.num ? 'bg-eco-50 text-eco-700 dark:bg-eco-500/15 dark:text-eco-300' : 'bg-ink-100 text-ink-400 dark:bg-ink-800 dark:text-ink-500'
             }`}>
-              {step > s.num ? '✓' : s.num}
+              {step > s.num ? <FiCheck size={14} /> : s.num}
             </div>
-            <span className={`text-xs font-bold hidden sm:inline ${step === s.num ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+            <span className={`text-xs font-semibold hidden sm:inline ${step === s.num ? 'text-ink-900 dark:text-white' : 'text-ink-400 dark:text-ink-500'}`}>
               {s.label}
             </span>
             {index < stepsList.length - 1 && (
-              <div className={`flex-1 h-[2px] mx-4 rounded-full ${step > s.num ? 'bg-eco-500/50' : 'bg-gray-150 dark:bg-gray-800/30'}`}></div>
+              <div className={`flex-1 h-[2px] mx-4 rounded-full ${step > s.num ? 'bg-eco-500' : 'bg-ink-200 dark:bg-ink-800'}`}></div>
             )}
           </div>
         ))}
@@ -284,21 +287,21 @@ export default function Calculator() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Form */}
-        <div className="lg:col-span-2 glass-card p-6 min-h-[350px] flex flex-col justify-between">
+        <div className="lg:col-span-2 card min-h-[350px] flex flex-col justify-between">
           {step === 1 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">🧳 Today&apos;s Trips</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Add each journey you made today.</p>
+                <h3 className="text-lg font-bold text-ink-900 dark:text-white flex items-center gap-2"><FiMapPin size={16} className="text-ink-400" /> Today&apos;s Trips</h3>
+                <p className="text-xs text-ink-400 dark:text-ink-500 mt-0.5">Add each journey you made today.</p>
               </div>
 
               {trips.map((trip, idx) => (
-                <div key={idx} className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200/60 dark:border-white/5 space-y-3">
+                <div key={idx} className="surface-soft p-4 border border-ink-200 dark:border-ink-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Trip {idx + 1}</span>
+                    <span className="text-xs font-bold text-ink-400 uppercase tracking-wider">Trip {idx + 1}</span>
                     {trips.length > 1 && (
                       <button type="button" onClick={() => removeTrip(idx)}
-                        className="text-red-400 hover:text-red-500 transition-colors" aria-label="Remove trip">
+                        className="text-high-500 hover:text-high-600 dark:text-high-400 transition-colors" aria-label="Remove trip">
                         <FiTrash2 />
                       </button>
                     )}
@@ -306,24 +309,24 @@ export default function Calculator() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Mode</label>
-                      <select className="input-field cursor-pointer" value={trip.mode}
+                      <label className="input-label">Mode</label>
+                      <select aria-label="Mode" className="input-field cursor-pointer" value={trip.mode}
                         onChange={(e) => updateTrip(idx, { mode: e.target.value })}>
                         {MODE_OPTIONS.map((m) => (
-                          <option key={m.value} value={m.value}>{m.icon} {m.label}</option>
+                          <option key={m.value} value={m.value}>{m.label}</option>
                         ))}
                       </select>
                       <FactorBadge factor={factorFor(trip)} pending compact />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Distance (km)</label>
-                      <input type="number" min="0" step="any" className="input-field" placeholder="0.0"
+                      <label className="input-label">Distance (km)</label>
+                      <input aria-label="Distance (km)" type="number" min="0" step="any" className="input-field" placeholder="0.0"
                         value={trip.distanceKm}
                         onChange={(e) => updateTrip(idx, { distanceKm: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Purpose</label>
-                      <select className="input-field cursor-pointer" value={trip.purpose}
+                      <label className="input-label">Purpose</label>
+                      <select aria-label="Purpose" className="input-field cursor-pointer" value={trip.purpose}
                         onChange={(e) => updateTrip(idx, { purpose: e.target.value })}>
                         {PURPOSES.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
@@ -331,19 +334,19 @@ export default function Calculator() {
                   </div>
 
                   {splitsByOccupants(trip) && (
-                    <div className="p-3 rounded-xl bg-eco-500/5 border border-eco-500/20 flex items-center justify-between">
+                    <div className="p-3 rounded-lg bg-eco-50 dark:bg-eco-500/10 border border-eco-200 dark:border-eco-500/20 flex items-center justify-between">
                       <div>
-                        <h4 className="text-xs font-bold text-gray-800 dark:text-white">👥 Occupants (incl. driver)</h4>
-                        <p className="text-[10px] text-gray-400 mt-0.5">Your share = vehicle emissions ÷ occupants</p>
+                        <h4 className="text-xs font-bold text-ink-900 dark:text-white">Occupants (incl. driver)</h4>
+                        <p className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Your share = vehicle emissions ÷ occupants</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button type="button"
                           onClick={() => updateTrip(idx, { occupants: Math.max(1, (Number(trip.occupants) || 1) - 1) })}
-                          className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black hover:bg-eco-500 hover:text-white transition-all">−</button>
-                        <span className="w-10 text-center text-lg font-black text-gray-800 dark:text-white">{trip.occupants || 1}</span>
+                          className="w-8 h-8 rounded-lg border border-ink-300 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-600 dark:text-ink-300 font-bold hover:bg-eco-600 hover:border-eco-600 hover:text-white transition-colors">−</button>
+                        <span className="w-10 text-center text-lg font-bold text-ink-900 dark:text-white">{trip.occupants || 1}</span>
                         <button type="button"
                           onClick={() => updateTrip(idx, { occupants: Math.min(8, (Number(trip.occupants) || 1) + 1) })}
-                          className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black hover:bg-eco-500 hover:text-white transition-all">+</button>
+                          className="w-8 h-8 rounded-lg border border-ink-300 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-600 dark:text-ink-300 font-bold hover:bg-eco-600 hover:border-eco-600 hover:text-white transition-colors">+</button>
                       </div>
                     </div>
                   )}
@@ -351,7 +354,7 @@ export default function Calculator() {
               ))}
 
               <button type="button" onClick={addTrip}
-                className="w-full py-3 rounded-2xl border-2 border-dashed border-eco-500/40 text-eco-600 dark:text-eco-400 font-bold text-sm hover:bg-eco-500/5 transition-all flex items-center justify-center gap-2">
+                className="w-full py-3 rounded-lg border-2 border-dashed border-ink-300 dark:border-ink-700 text-ink-500 dark:text-ink-400 font-semibold text-sm hover:border-ink-400 dark:hover:border-ink-600 hover:text-ink-700 dark:hover:text-ink-200 transition-colors flex items-center justify-center gap-2">
                 <FiPlus /> Add Another Trip
               </button>
             </div>
@@ -360,27 +363,30 @@ export default function Calculator() {
           {step === 2 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">🚗 Vehicle Details (optional)</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <h3 className="text-lg font-bold text-ink-900 dark:text-white flex items-center gap-2"><FiSettings size={16} className="text-ink-400" /> Vehicle Details (optional)</h3>
+                <p className="text-xs text-ink-400 dark:text-ink-500 mt-0.5">
                   Add specifics for car/EV/motorcycle trips so exact emission factors can be used instead of generic ones.
                 </p>
               </div>
 
               {trips.filter((t) => ['car', 'ev', 'motorcycle'].includes(t.mode)).length === 0 && (
-                <p className="text-sm text-gray-400 py-8 text-center">No vehicle trips added — nothing to configure.</p>
+                <p className="text-sm text-ink-400 dark:text-ink-500 py-8 text-center">No vehicle trips added — nothing to configure.</p>
               )}
 
               {trips.map((trip, idx) => (
                 !['car', 'ev', 'motorcycle'].includes(trip.mode) ? null : (
-                  <div key={idx} className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200/60 dark:border-white/5 space-y-3">
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
-                      Trip {idx + 1}: {MODE_OPTIONS.find((m) => m.value === trip.mode)?.label}
-                    </span>
+                  <div key={idx} className="surface-soft p-4 border border-ink-200 dark:border-ink-800 space-y-3">
+                    <div className="flex items-center gap-2">
+                      {(() => { const Icon = MODE_OPTIONS.find((m) => m.value === trip.mode)?.icon; return Icon ? <Icon size={14} className="text-ink-400" /> : null; })()}
+                      <span className="text-xs font-bold text-ink-400 uppercase tracking-wider">
+                        Trip {idx + 1}: {MODE_OPTIONS.find((m) => m.value === trip.mode)?.label}
+                      </span>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {trip.mode !== 'motorcycle' && (
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Category</label>
-                          <select className="input-field cursor-pointer" value={trip.vehicle.category}
+                          <label className="input-label">Category</label>
+                          <select aria-label="Category" className="input-field cursor-pointer" value={trip.vehicle.category}
                             onChange={(e) => updateVehicle(idx, 'category', e.target.value)}>
                             <option value="">Generic</option>
                             {(trip.mode === 'motorcycle'
@@ -392,8 +398,8 @@ export default function Calculator() {
                       )}
                       {trip.mode !== 'ev' && (
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Fuel</label>
-                          <select className="input-field cursor-pointer" value={trip.vehicle.fuelType}
+                          <label className="input-label">Fuel</label>
+                          <select aria-label="Fuel" className="input-field cursor-pointer" value={trip.vehicle.fuelType}
                             onChange={(e) => updateVehicle(idx, 'fuelType', e.target.value)}>
                             <option value="">Generic</option>
                             {(trip.mode === 'auto_rickshaw'
@@ -405,16 +411,16 @@ export default function Calculator() {
                       )}
                       {['car', 'motorcycle'].includes(trip.mode) && (
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Mileage (km/L)</label>
-                          <input type="number" min="0" step="any" className="input-field" placeholder="e.g. 18"
+                          <label className="input-label">Mileage (km/L)</label>
+                          <input aria-label="Mileage (km/L)" type="number" min="0" step="any" className="input-field" placeholder="e.g. 18"
                             value={trip.vehicle.fuelEfficiencyKmpl}
                             onChange={(e) => updateVehicle(idx, 'fuelEfficiencyKmpl', e.target.value)} />
                         </div>
                       )}
                       {trip.mode === 'ev' && (
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Consumption (kWh/km)</label>
-                          <input type="number" min="0" step="any" className="input-field" placeholder="e.g. 0.15"
+                          <label className="input-label">Consumption (kWh/km)</label>
+                          <input aria-label="Consumption (kWh/km)" type="number" min="0" step="any" className="input-field" placeholder="e.g. 0.15"
                             value={trip.vehicle.electricityConsumptionKwhPerKm}
                             onChange={(e) => updateVehicle(idx, 'electricityConsumptionKwhPerKm', e.target.value)} />
                         </div>
@@ -430,28 +436,28 @@ export default function Calculator() {
           {step === 3 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">📋 Preview</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <h3 className="text-lg font-bold text-ink-900 dark:text-white flex items-center gap-2"><FiClipboard size={16} className="text-ink-400" /> Preview</h3>
+                <p className="text-xs text-ink-400 dark:text-ink-500 mt-0.5">
                   Factors below are the ones the server resolved — it recalculates the final figure on save.
                 </p>
               </div>
-              <div className="p-4 rounded-2xl bg-eco-500/5 border border-eco-500/20 space-y-2">
+              <div className="p-4 rounded-lg bg-eco-50 dark:bg-eco-500/10 border border-eco-200 dark:border-eco-500/20 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Your personal transport emissions</span>
-                  <span className="font-black text-eco-600 dark:text-eco-400">{previewPersonal} kg CO₂</span>
+                  <span className="text-ink-600 dark:text-ink-300">Your personal transport emissions</span>
+                  <span className="font-bold text-eco-700 dark:text-eco-400">{previewPersonal} kg CO₂</span>
                 </div>
                 {liveStats.household !== liveStats.personal && (
-                  <div className="flex justify-between text-xs text-gray-400">
+                  <div className="flex justify-between text-xs text-ink-400 dark:text-ink-500">
                     <span>Full vehicle emissions (whole household)</span>
                     <span>{liveStats.household} kg CO₂</span>
                   </div>
                 )}
                 {liveStats.pending > 0 && (
-                  <p className="text-[10px] text-gray-400 italic">
+                  <p className="text-[10px] italic text-ink-400 dark:text-ink-500">
                     Resolving emission factors for {liveStats.pending} trip{liveStats.pending > 1 ? 's' : ''}…
                   </p>
                 )}
-                <div className="pt-2 border-t border-eco-500/10 space-y-2">
+                <div className="pt-2 border-t border-eco-100 dark:border-eco-500/20 space-y-2">
                   {trips.map((trip, idx) => {
                     const km = Number(trip.distanceKm) || 0;
                     if (km <= 0) return null;
@@ -460,11 +466,13 @@ export default function Calculator() {
                     const share = resolved
                       ? (km * Number(resolved.factorKgPerKm)) / (resolved.occupancySplit ? occupants : 1)
                       : null;
+                    const ModeIcon = MODE_OPTIONS.find((m) => m.value === trip.mode)?.icon;
                     return (
                       <div key={idx} className="space-y-0.5">
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>
-                            {MODE_OPTIONS.find((m) => m.value === trip.mode)?.icon} {formatMode(trip.mode)} · {km} km
+                        <div className="flex justify-between text-xs text-ink-500 dark:text-ink-400 items-center">
+                          <span className="inline-flex items-center gap-1.5">
+                            {ModeIcon && <ModeIcon size={13} className="text-ink-400" />}
+                            {formatMode(trip.mode)} · {km} km
                           </span>
                           <span className="font-bold">{share === null ? '—' : `${r2(share)} kg`}</span>
                         </div>
@@ -475,21 +483,21 @@ export default function Calculator() {
                 </div>
               </div>
               <button onClick={handleSubmit} disabled={loading || !validTrips.length}
-                className="glow-button w-full flex items-center justify-center gap-2 disabled:opacity-50">
+                className="btn-accent w-full disabled:opacity-50">
                 {loading ? 'Saving...' : <><FiCheckCircle /> Save Trip Log</>}
               </button>
             </div>
           )}
 
           {/* Navigation */}
-          <div className="flex justify-between mt-6 pt-4 border-t border-gray-200/50 dark:border-white/5">
+          <div className="flex justify-between mt-6 pt-4 border-t border-ink-200 dark:border-ink-800">
             <button onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-800 dark:hover:text-white disabled:opacity-30 transition-all">
+              className="btn-secondary disabled:opacity-40">
               Back
             </button>
             {step < 3 ? (
               <button onClick={() => setStep(step + 1)}
-                className="px-6 py-2 rounded-xl bg-eco-500 text-white text-sm font-bold hover:bg-eco-600 transition-all">
+                className="btn-primary">
                 Continue
               </button>
             ) : <span />}
@@ -497,34 +505,34 @@ export default function Calculator() {
         </div>
 
         {/* Live Preview Panel */}
-        <div className="glass-card p-6 flex flex-col items-center justify-center text-center space-y-4 min-h-[350px]">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Personal Transport Today</p>
-          <p className="text-5xl font-black text-eco-500">{previewPersonal}</p>
-          <p className="text-xs text-gray-400 -mt-3">kg CO₂</p>
-          <div className="w-full pt-4 border-t border-gray-200/50 dark:border-white/5 space-y-2 text-left">
+        <div className="card min-h-[350px] p-6 flex flex-col items-center justify-center text-center space-y-4">
+          <p className="text-xs font-bold text-ink-400 uppercase tracking-wider">Personal Transport Today</p>
+          <p className="text-5xl font-bold text-eco-600 dark:text-eco-400">{previewPersonal}</p>
+          <p className="text-xs text-ink-400 dark:text-ink-500 -mt-3">kg CO₂</p>
+          <div className="w-full pt-4 border-t border-ink-200 dark:border-ink-800 space-y-2 text-left">
             <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Trips logged</span>
-              <span className="font-bold text-gray-700 dark:text-gray-200">{validTrips.length}</span>
+              <span className="text-ink-400 dark:text-ink-500">Trips logged</span>
+              <span className="font-bold text-ink-700 dark:text-ink-200">{validTrips.length}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Total distance</span>
-              <span className="font-bold text-gray-700 dark:text-gray-200">
+              <span className="text-ink-400 dark:text-ink-500">Total distance</span>
+              <span className="font-bold text-ink-700 dark:text-ink-200">
                 {Math.round(validTrips.reduce((s, t) => s + (Number(t.distanceKm) || 0), 0) * 10) / 10} km
               </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Shared-ride savings</span>
-              <span className="font-bold text-eco-600 dark:text-eco-400">
+              <span className="text-ink-400 dark:text-ink-500">Shared-ride savings</span>
+              <span className="font-bold text-eco-700 dark:text-eco-400">
                 {r2(liveStats.household - liveStats.personal)} kg
               </span>
             </div>
           </div>
           {liveStats.pending > 0 && (
-            <p className="text-[10px] text-gray-400 italic">Waiting on the emission-factor service…</p>
+            <p className="text-[10px] italic text-ink-400 dark:text-ink-500">Waiting on the emission-factor service…</p>
           )}
           {result && (
-            <div className="w-full p-3 rounded-xl bg-eco-500/10 text-eco-600 dark:text-eco-400 text-xs font-bold">
-              ✓ Saved! Redirecting to dashboard...
+            <div className="w-full p-3 rounded-lg bg-eco-50 dark:bg-eco-500/10 border border-eco-200 dark:border-eco-500/20 text-eco-700 dark:text-eco-400 text-xs font-bold flex items-center justify-center gap-1.5">
+              <FiCheck size={14} /> Saved! Redirecting to dashboard...
             </div>
           )}
         </div>

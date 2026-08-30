@@ -1,42 +1,35 @@
-export default function StatCard({ icon, label, value, unit, color = 'eco', trend }) {
-  const iconBg = {
-    eco:    'bg-gradient-to-br from-eco-100 to-eco-200 dark:from-eco-950 dark:to-eco-900 text-eco-600 dark:text-eco-400',
-    ocean:  'bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950 dark:to-blue-900 text-blue-600 dark:text-blue-400',
-    purple: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950 dark:to-purple-900 text-purple-600 dark:text-purple-400',
-    amber:  'bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-950 dark:to-amber-900 text-amber-600 dark:text-amber-400',
+export default function StatCard({ icon: Icon, label, value, unit, color = 'ink', hint }) {
+  const iconTone = {
+    ink:    'bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300',
+    eco:    'bg-eco-50 text-eco-600 dark:bg-eco-500/15 dark:text-eco-400',
+    ocean:  'bg-ocean-50 text-ocean-600 dark:bg-ocean-500/15 dark:text-ocean-400',
+    amber:  'bg-warn-50 text-warn-600 dark:bg-warn-500/15 dark:text-warn-400',
+    high:   'bg-high-50 text-high-600 dark:bg-high-500/15 dark:text-high-400',
   };
 
-  const valueColor = {
+  const valueTone = {
+    ink:    'text-ink-900 dark:text-white',
     eco:    'text-eco-600 dark:text-eco-400',
-    ocean:  'text-blue-600 dark:text-blue-400',
-    purple: 'text-purple-600 dark:text-purple-400',
-    amber:  'text-amber-600 dark:text-amber-400',
-  };
-
-  const glow = {
-    eco:    'shadow-eco-500/10',
-    ocean:  'shadow-blue-500/10',
-    purple: 'shadow-purple-500/10',
-    amber:  'shadow-amber-500/10',
+    ocean:  'text-ocean-600 dark:text-ocean-400',
+    amber:  'text-warn-600 dark:text-warn-400',
+    high:   'text-high-600 dark:text-high-400',
   };
 
   return (
-    <div className={`card flex flex-col gap-3 animate-slide-up hover:shadow-md ${glow[color]} transition-shadow`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${iconBg[color]}`}>
-        {icon}
-      </div>
+    <div className="card p-5 flex flex-col gap-3">
+      {Icon && (
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconTone[color] || iconTone.ink}`}>
+          <Icon size={17} />
+        </div>
+      )}
       <div>
         <p className="kpi-label">{label}</p>
-        <p className={`font-display font-black text-2xl leading-tight tracking-tight mt-1 ${valueColor[color]}`}>
+        <p className={`font-display font-bold text-2xl leading-tight tracking-tight mt-1 ${valueTone[color] || valueTone.ink}`}>
           {value}
-          {unit && <span className="text-xs text-gray-400 font-normal ml-1">{unit}</span>}
+          {unit && <span className="text-xs text-ink-400 font-normal ml-1">{unit}</span>}
         </p>
+        {hint && <p className="mt-1 text-[11px] text-ink-400">{hint}</p>}
       </div>
-      {trend !== undefined && (
-        <p className={`text-xs font-semibold ${trend > 0 ? 'text-red-500' : 'text-eco-600'}`}>
-          {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}% vs last period
-        </p>
-      )}
     </div>
   );
 }

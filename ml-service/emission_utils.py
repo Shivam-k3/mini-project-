@@ -232,7 +232,10 @@ def resolve_trip_factor(trip):
             "level": "generic-mode",
             "sourceName": generic.get("source", ""),
         }
-    return {"factorKgPerKm": 0.21, "level": "generic-mode", "sourceName": ""}
+    # Unknown mode — fall back to the canonical car default from the shared
+    # dataset (mirrors factorResolver.resolveTripFactor), never a hardcoded literal.
+    car_default = (FACTOR_DATASET or {}).get("modes", {}).get("car", {}).get("co2_kg_per_km", 0.21)
+    return {"factorKgPerKm": car_default, "level": "generic-mode", "sourceName": ""}
 
 
 def calculate_trips(trips):

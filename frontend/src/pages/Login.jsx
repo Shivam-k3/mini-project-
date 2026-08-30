@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  FiUser, FiLock, FiEye, FiEyeOff, FiCheck,
+  FiUser, FiLock, FiEye, FiEyeOff, FiActivity, FiShare2,
   FiArrowRight, FiMail
 } from 'react-icons/fi';
 import { FieldError } from '../components/FormFeedback';
@@ -84,20 +84,21 @@ export default function Login() {
         <div className="auth-brand-content">
           <div className="auth-mark"><img src="/leaf.svg" alt="EcoGuardian" className="w-14 h-14" /></div>
           <p className="auth-brand-name"><Typewriter text="EcoGuardian" speed={65} /></p>
-          <h1>Pioneering the future of sustainability through intelligent ecological stewardship.</h1>
+          <p className="auth-brand-kicker">Personal Mobility Intelligence</p>
+          <h1>Know your transportation emissions before you move.</h1>
 
           <div className="auth-proof-list">
             <div className="auth-proof">
-              <span><FiCheck size={15} /></span>
-              <p><strong>Precision analytics</strong>Monitor carbon footprints with clarity and confidence.</p>
+              <span><FiActivity size={15} /></span>
+              <p><strong>Explainable ML</strong>Trust transparent, auditable emission forecasts — every prediction is reasoned, never a black box.</p>
             </div>
             <div className="auth-proof">
-              <span><FiCheck size={15} /></span>
-              <p><strong>Ethical forecasting</strong>Understand environmental impact through explainable AI.</p>
+              <span><FiShare2 size={15} /></span>
+              <p><strong>Mobility Twin</strong>Simulate route, mode, and schedule scenarios to see their emissions impact before you change anything.</p>
             </div>
           </div>
         </div>
-        <p className="auth-version">Campus sustainability portal <b>•</b> SDG 13</p>
+        <p className="auth-version">Transport emissions analytics <b>•</b> Scenario simulation</p>
       </section>
 
       <section className="auth-form-panel">
@@ -109,7 +110,7 @@ export default function Login() {
           <header className="auth-header">
             <p className="auth-eyebrow">Secure workspace</p>
             <h2>Welcome back</h2>
-            <p>Enter your institutional credentials to access your dashboard.</p>
+            <p>Enter your credentials to access your mobility dashboard.</p>
           </header>
 
           <button type="button" className="auth-google-button" aria-label="Google sign-in is not configured">

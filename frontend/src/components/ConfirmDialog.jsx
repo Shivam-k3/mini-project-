@@ -41,7 +41,7 @@ export default function ConfirmDialog({ open, title, message, confirmLabel = 'Co
             <h3 id="confirm-dialog-title" className="text-sm font-bold text-gray-900 dark:text-white">{title}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{message}</p>
           </div>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 -mt-0.5">
+          <button onClick={onCancel} aria-label="Close dialog" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 -mt-0.5">
             <FiX size={16} />
           </button>
         </div>
