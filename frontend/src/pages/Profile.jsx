@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { FiUser, FiSettings, FiSliders, FiBell, FiSun, FiMoon } from 'react-icons/fi';
+import { FiUser, FiSettings, FiSliders, FiBell, FiSun, FiMoon, FiCheck } from 'react-icons/fi';
+import { FieldError } from '../components/FormFeedback';
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
@@ -20,9 +21,13 @@ export default function Profile() {
     challengeReminders: false
   });
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) { setNameError('Name is required'); return; }
+    setNameError('');
     setLoading(true);
     try {
       const { data } = await authAPI.updateProfile({
@@ -30,7 +35,9 @@ export default function Profile() {
         profile: { location: form.location, bio: form.bio, goal: Number(form.goal) },
       });
       updateUser(data);
+      setSaved(true);
       toast.success('Settings and goals updated!');
+      setTimeout(() => setSaved(false), 2500);
     } catch {
       toast.error('Failed to update settings');
     } finally {
@@ -67,8 +74,9 @@ export default function Profile() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Full Name</label>
-                  <input className="input-field py-2 text-xs" value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                  <input className={`input-field py-2 text-xs ${nameError ? '!border-red-400' : ''}`} value={form.name}
+                    onChange={(e) => { setForm({ ...form, name: e.target.value }); setNameError(''); }} required />
+                  <FieldError message={nameError} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Location</label>
@@ -102,8 +110,8 @@ export default function Profile() {
                 </p>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary py-2.5 px-6 text-xs select-none">
-                {loading ? 'Saving...' : 'Save Settings'}
+              <button type="submit" disabled={loading} className={`btn-primary py-2.5 px-6 text-xs select-none transition-all ${saved ? '!bg-eco-500 !text-white' : ''}`}>
+                {loading ? 'Saving...' : saved ? <><FiCheck size={14} /> Saved!</> : 'Save Settings'}
               </button>
             </form>
           </div>

@@ -2,7 +2,8 @@ const express = require('express');
 const CarbonEntry = require('../models/CarbonEntry');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
-const { calculateEmissions, calculateEcoScore } = require('../utils/emissionFactors');
+const { calculateEcoScore } = require('../utils/emissionFactors');
+const { calculateTrips } = require('../utils/tripEngine');
 const { getPredictions, getShapExplanation } = require('../utils/mlService');
 
 const router = express.Router();
@@ -62,15 +63,60 @@ async function autoAwardBadges(user, entry) {
   return newBadges;
 }
 
+/**
+ * Map the trip engine's flat resolution output onto the CarbonEntry subdoc
+ * shape, so each stored trip keeps its factor provenance (spec §12).
+ */
+function toTripSubdocs(tripDetails) {
+  return tripDetails.map((t) => ({
+    mode: t.mode,
+    distanceKm: t.distanceKm,
+    occupants: t.occupants,
+    tripFrequency: t.tripFrequency,
+    purpose: t.purpose,
+    vehicle: t.vehicle || {},
+    resolved: {
+      factorKgPerKm: t.factorKgPerKm,
+      factorLevel: t.factorLevel,
+      factorSource: t.factorSource,
+      sourceUrl: t.factorSourceUrl,
+      sourceYear: t.factorSourceYear,
+      methodology: t.factorMethodology,
+    },
+    tripTotalEmission: t.tripTotalEmission,
+    personalAllocatedEmission: t.personalAllocatedEmission,
+  }));
+}
+
 router.post('/', protect, async (req, res) => {
-  const { total, breakdown, householdTotal, householdBreakdown } = calculateEmissions(req.body);
+  // Transportation-only platform (spec §37): trips[] is the sole input.
+  // Legacy lifestyle fields remain on the schema for historical records but
+  // are never accepted from the client, so only whitelisted keys are persisted.
+  if (!Array.isArray(req.body.trips) || req.body.trips.length === 0) {
+    return res.status(400).json({
+      message: 'At least one trip is required — EcoGuardian tracks transportation emissions only.',
+    });
+  }
+
+  const tripsResult = await calculateTrips(req.body.trips);
+  if (tripsResult.tripDetails.length === 0) {
+    return res.status(400).json({ message: 'At least one trip must have a distance greater than zero.' });
+  }
+
+  // For transportation-only entries the occupancy-allocated personal share IS
+  // the entry total.
+  const entryTotal = tripsResult.transportPersonal;
+
   const entry = await CarbonEntry.create({
     user: req.user._id,
-    ...req.body,
-    totalEmissions: total,
-    breakdown,
-    householdTotal,
-    householdBreakdown,
+    ...(req.body.date ? { date: req.body.date } : {}),
+    ...(req.body.notes ? { notes: req.body.notes } : {}),
+    trips: toTripSubdocs(tripsResult.tripDetails),
+    transportPersonal: tripsResult.transportPersonal,
+    transportHousehold: tripsResult.transportHousehold,
+    modeBreakdown: tripsResult.modeBreakdown,
+    totalEmissions: entryTotal,
+    breakdown: { transport: entryTotal }, // backward-compatible shape
   });
 
   // Update gamification
@@ -87,8 +133,8 @@ router.post('/', protect, async (req, res) => {
     }
     user.gamification.lastActiveDate = new Date();
   }
-  user.gamification.ecoScore = calculateEcoScore(total, user.gamification.streak);
-  user.gamification.greenPoints += Math.max(0, Math.round(20 - total));
+  user.gamification.ecoScore = calculateEcoScore(entryTotal, user.gamification.streak);
+  user.gamification.greenPoints += Math.max(0, Math.round(20 - entryTotal));
   await user.save();
 
   // Auto-award badges
@@ -144,6 +190,43 @@ router.get('/dashboard', protect, async (req, res) => {
   const allTimeTotal = sumEmissions(allEntries);
   const categoryBreakdown = avgBreakdown(allEntries.slice(0, 30));
 
+  // Per-travel-mode totals (occupancy-allocated personal kg CO2). `breakdown`
+  // only ever holds a single `transport` key on v3 entries, so it cannot drive
+  // a mode-mix chart — modeBreakdown can.
+  const toModePairs = (mb) => {
+    if (!mb) return [];
+    if (mb instanceof Map) return [...mb.entries()];
+    return Object.entries(typeof mb.toObject === 'function' ? mb.toObject() : mb);
+  };
+  const sumModes = (entries) => {
+    const totals = {};
+    entries.forEach((e) => {
+      toModePairs(e.modeBreakdown).forEach(([mode, kg]) => {
+        const v = Number(kg) || 0;
+        if (v > 0) totals[mode] = (totals[mode] || 0) + v;
+      });
+    });
+    return Object.fromEntries(
+      Object.entries(totals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => [k, Math.round(v * 100) / 100])
+    );
+  };
+  const modeBreakdown = sumModes(allEntries.slice(0, 30));
+
+  // ---- transportation-only aggregates (occupancy-allocated personal) ------
+  const sumPersonal = (entries) =>
+    Math.round(entries.reduce((s, e) => {
+      if (typeof e.transportPersonal === 'number') return s + e.transportPersonal;
+      return s + (e.breakdown?.transport || 0); // legacy fallback
+    }, 0) * 100) / 100;
+
+  const transport = {
+    dailyPersonal: sumPersonal(daily),
+    weeklyPersonal: sumPersonal(weekly),
+    monthlyPersonal: sumPersonal(monthly),
+  };
+
   const trend = allEntries.slice(0, 30).reverse().map((e) => ({
     date: e.date,
     total: e.totalEmissions,
@@ -169,7 +252,9 @@ router.get('/dashboard', protect, async (req, res) => {
     weekly: Math.round(weeklyTotal * 100) / 100,
     monthly: Math.round(monthlyTotal * 100) / 100,
     total: Math.round(allTimeTotal * 100) / 100,
+    transport,
     categoryBreakdown,
+    modeBreakdown,
     trend,
     predictions,
     shapExplanation,

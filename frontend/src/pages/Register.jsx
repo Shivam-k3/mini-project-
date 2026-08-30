@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
-import { FcGoogle as GoogleIcon } from 'react-icons/fc';
 import toast from 'react-hot-toast';
 
 export default function Register() {
-  const { register, user, login } = useAuth();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [showPass, setShowPass] = useState(false);
@@ -36,19 +35,6 @@ export default function Register() {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    toast.loading('Redirecting to Google Sign-Up...', { duration: 1500 });
-    setTimeout(() => {
-      // Simulate OAuth auto-register/login
-      login('demo@ecoguardian.ai', 'demo123')
-        .then(() => {
-          toast.success('Google Registration Successful!');
-          navigate('/dashboard');
-        })
-        .catch(() => toast.error('Google Sign-Up failed'));
-    }, 1500);
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 bg-mesh p-4">
       <div className="glass-card w-full max-w-md animate-slide-up border border-white/20 dark:border-white/5 rounded-3xl p-8">
@@ -58,25 +44,8 @@ export default function Register() {
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-eco-400 to-ocean-500 flex items-center justify-center text-white text-xl mx-auto mb-4 shadow-md">
             🌱
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Create account</h1>
-          <p className="text-xs text-gray-400 mt-1 font-medium">Join our global community for SDG 13</p>
-        </div>
-
-        {/* Google Signup */}
-        <button 
-          type="button" 
-          onClick={handleGoogleSignUp}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white/40 dark:bg-gray-900/40 rounded-xl text-sm font-semibold transition-all duration-300 active:scale-[0.98] select-none text-gray-700 dark:text-gray-200"
-        >
-          <GoogleIcon size={18} />
-          Sign up with Google
-        </button>
-
-        {/* Divider */}
-        <div className="flex items-center my-6">
-          <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
-          <span className="px-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">or credentials</span>
-          <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Create your free account</h1>
+          <p className="text-xs text-gray-400 mt-1 font-medium">Personal mobility tracking — no organization required</p>
         </div>
 
         {/* Form */}

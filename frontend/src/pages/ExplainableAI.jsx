@@ -2,18 +2,29 @@ import { useState, useEffect } from 'react';
 import { carbonAPI } from '../services/api';
 import { ShapBarChart } from '../components/Charts';
 import { ExplainableAISkeleton } from '../components/Skeleton';
-import { FiCpu, FiInfo, FiActivity, FiTrendingUp } from 'react-icons/fi';
+import { FiCpu, FiInfo, FiActivity, FiTrendingUp, FiClock } from 'react-icons/fi';
+
+function formatRelativeTime(date) {
+  if (!date) return '';
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function ExplainableAI() {
   const [data, setData] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchedAt, setFetchedAt] = useState(null);
 
   useEffect(() => {
     carbonAPI.getDashboard()
       .then(({ data }) => {
         setDashboard(data);
         setData(data.shapExplanation);
+        setFetchedAt(new Date().toISOString());
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -40,8 +51,13 @@ export default function ExplainableAI() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Explainable AI Hub</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
           Transparent Shapley value attribution and emission source analysis for your carbon footprint.
+          {fetchedAt && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 ml-2">
+              <FiClock size={10} /> Updated {formatRelativeTime(fetchedAt)}
+            </span>
+          )}
         </p>
       </div>
 

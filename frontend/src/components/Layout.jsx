@@ -1,19 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   FiHome, FiPlusCircle, FiCpu, FiMessageCircle, FiAward,
   FiFileText, FiSettings, FiLogOut, FiSun, FiMoon, FiShield,
-  FiBell, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity
+  FiBell, FiChevronDown, FiUser, FiChevronLeft, FiMenu, FiActivity,
+  FiSearch
 } from 'react-icons/fi';
+import SkipToContent from './SkipToContent';
+import ScrollProgress from './ScrollProgress';
+import BackToTop from './BackToTop';
+import HelpButton from './HelpButton';
+import SearchModal from './SearchModal';
+import AnnouncementBanner from './AnnouncementBanner';
 
 const getNavItems = (role) => {
   switch (role) {
     case 'super_admin':
       return [
         { to: '/dashboard', icon: FiHome,        label: 'Platform Dashboard' },
-        { to: '/admin',     icon: FiShield,      label: 'College Manager' },
+        { to: '/admin',     icon: FiShield,      label: 'Organization Manager' },
         { to: '/profile',   icon: FiSettings,    label: 'Profile' },
       ];
     case 'college_admin':
@@ -51,6 +58,7 @@ const ROLE_LABELS = {
   college_admin: 'College Admin',
   faculty:       'Faculty',
   student:       'Student',
+  individual:    'Personal Account',
 };
 
 export default function Layout({ children }) {
@@ -62,6 +70,7 @@ export default function Layout({ children }) {
   const [profileOpen,      setProfileOpen]      = useState(false);
   const [notificationsOpen,setNotificationsOpen] = useState(false);
   const [mobileOpen,       setMobileOpen]       = useState(false);
+  const [searchOpen,       setSearchOpen]       = useState(false);
 
   const profileRef = useRef(null);
   const notifyRef  = useRef(null);
@@ -75,6 +84,23 @@ export default function Layout({ children }) {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKey = (e) => { if (e.key === 'Escape') closeMobile(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [mobileOpen, closeMobile]);
+
+  useEffect(() => {
+    const handleGlobalKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchOpen((o) => !o); }
+    };
+    document.addEventListener('keydown', handleGlobalKey);
+    return () => document.removeEventListener('keydown', handleGlobalKey);
+  }, []);
+
   const handleLogout = () => { logout(); navigate('/login'); };
   const navItems     = getNavItems(user?.role);
   const roleLabel    = ROLE_LABELS[user?.role] ?? 'User';
@@ -86,6 +112,9 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex bg-transparent transition-colors duration-200">
+      <SkipToContent />
+      <ScrollProgress />
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* ── Sidebar — Desktop ─────────────────────────────── */}
       <aside className={`
@@ -195,6 +224,8 @@ export default function Layout({ children }) {
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-eco-50 dark:hover:bg-eco-950/30 mr-3"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileOpen}
           >
             <FiMenu size={20} />
           </button>
@@ -213,6 +244,14 @@ export default function Layout({ children }) {
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-4">
+            {/* Search */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-2 rounded-xl text-gray-400 hover:text-eco-600 hover:bg-eco-50 dark:hover:bg-eco-950/30 transition-colors"
+              aria-label="Open search (Ctrl+K)"
+            >
+              <FiSearch size={18} />
+            </button>
 
             {/* Notifications */}
             <div className="relative" ref={notifyRef}>
@@ -291,7 +330,7 @@ export default function Layout({ children }) {
         <div className="h-[2px] bg-gradient-to-r from-transparent via-eco-500/15 to-transparent" />
 
         {/* ── Page Content ───────────────────────────────── */}
-        <main className="flex-1 p-5 sm:p-7 max-w-7xl w-full mx-auto animate-fade-in">
+        <main id="main-content" className="flex-1 p-5 sm:p-7 max-w-7xl w-full mx-auto animate-fade-in">
           {children}
         </main>
 
@@ -305,8 +344,8 @@ export default function Layout({ children }) {
 
       {/* ── Mobile Drawer ────────────────────────────────── */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeMobile} />
           <aside className="
             absolute inset-y-0 left-0 w-60 flex flex-col
             bg-gradient-to-b from-white/95 via-white/90 to-eco-50/80
@@ -330,7 +369,7 @@ export default function Layout({ children }) {
                 <NavLink
                   key={to}
                   to={to}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={closeMobile}
                   className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
                 >
                   <Icon size={17} />
@@ -340,7 +379,7 @@ export default function Layout({ children }) {
             </nav>
 
             <div className="px-3 py-4 border-t border-eco-200/20 dark:border-eco-800/15 space-y-0.5">
-              <button onClick={() => { toggle(); setMobileOpen(false); }} className="nav-link w-full">
+              <button onClick={() => { toggle(); closeMobile(); }} className="nav-link w-full">
                 {dark ? <FiSun size={17} /> : <FiMoon size={17} />}
                 <span>{dark ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
@@ -353,6 +392,8 @@ export default function Layout({ children }) {
         </div>
       )}
 
+      <BackToTop />
+      <HelpButton />
     </div>
   );
 }

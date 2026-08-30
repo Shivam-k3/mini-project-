@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -10,6 +10,7 @@ import {
 import GlowButton from '../components/GlowButton';
 import AnimatedCard from '../components/AnimatedCard';
 import ErrorBoundary from '../components/ErrorBoundary';
+import FAQItem from '../components/FAQItem';
 
 const EarthCanvas = lazy(() => import('../components/EarthCanvas'));
 const ParticlesBackground = lazy(() => import('../components/ParticlesBackground'));
@@ -19,12 +20,23 @@ export default function Landing() {
   const { user } = useAuth();
   const { dark, toggle } = useTheme();
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+    let hasUTM = false;
+    utmKeys.forEach((key) => {
+      const val = params.get(key);
+      if (val) { sessionStorage.setItem(key, val); hasUTM = true; }
+    });
+    if (hasUTM) sessionStorage.setItem('ecoguardian_landing_ref', window.location.pathname + window.location.search);
+  }, []);
+
   const features = [
-    { icon: FiFileText, title: 'Multi-Step Carbon Calculator', desc: 'Log transport, energy, water, food, and fuel. Visualize real-time totals with an itemized logging wizard.', tags: ['Transport', 'Energy', 'Water', 'Nutrition', 'Fuel'], color: 'text-eco-600', bg: 'bg-eco-500/10' },
+    { icon: FiFileText, title: 'Multi-Step Trip Calculator', desc: 'Log every trip with mode, distance, vehicle and occupancy. Visualize real-time totals with an itemized logging wizard.', tags: ['Trips', 'Vehicles', 'Occupancy', 'Purpose'], color: 'text-eco-600', bg: 'bg-eco-500/10' },
     { icon: FiCpu, title: 'Explainable AI (SHAP)', desc: 'Understand the exact root causes of high emissions with Shapley values and feature contribution percentages.', color: 'text-purple-500', bg: 'bg-purple-500/10', tag: 'Transparent Attribution Model' },
     { icon: FiTrendingUp, title: 'Forecast Predictions', desc: 'Train ML algorithms on your carbon history to forecast emissions for next week and next month.', color: 'text-ocean-500', bg: 'bg-ocean-500/10', tag: '95% Confidence Bounds' },
-    { icon: FiSettings, title: 'Digital Twin Simulator', desc: 'Simulate lifestyle modifications before executing them — toggle diet, transport, solar panels, and see carbon offsets.', tagsSim: ['🚗 → 🚇', '☀️ Solar', '🥗 Plant-Based'], color: 'text-amber-600', bg: 'bg-amber-500/10' },
-    { icon: FiMessageCircle, title: 'AI Sustainability Assistant', desc: 'Chatbot trained to guide your environmental strategy, formulate meal plans, and summarize files.', color: 'text-teal-600', bg: 'bg-teal-500/10', tag: 'Gemini & OpenAI Powered' },
+    { icon: FiSettings, title: 'Mobility Twin Simulator', desc: 'Simulate commute changes before making them — shift modes, share rides, swap to an EV, and see the carbon offset.', tagsSim: ['🚗 → 🚇', '👥 Carpool', '⚡ EV Swap'], color: 'text-amber-600', bg: 'bg-amber-500/10' },
+    { icon: FiMessageCircle, title: 'AI Mobility Assistant', desc: 'Chatbot trained to guide your commute strategy, compare travel modes, and explain your trip emissions.', color: 'text-teal-600', bg: 'bg-teal-500/10', tag: 'Gemini & OpenAI Powered' },
     { icon: FiAward, title: 'Gamification & Rewards', desc: 'Earn Green Points, build streaks, unlock milestone badges, and compete on the global leaderboard.', tagsSim: ['🏆 Leaderboard', '🔥 Streaks', '🏅 Badges'], color: 'text-rose-500', bg: 'bg-rose-500/10' },
   ];
 
@@ -75,7 +87,7 @@ export default function Landing() {
                 Empowering Your Climate Action with <span className="bg-clip-text text-transparent bg-gradient-to-r from-eco-500 to-ocean-500">Explainable AI</span>
               </h2>
               <p className="text-lg text-gray-500 dark:text-gray-400 font-medium max-w-xl">
-                EcoGuardian is a premium SaaS carbon footprint management platform. Calculate, monitor, forecast, and simulate lifestyle impacts using advanced ML and SHAP Explanations.
+                EcoGuardian is a premium SaaS carbon footprint management platform. Calculate, monitor, forecast, and simulate your commute impact using advanced ML and SHAP Explanations.
               </p>
               <div className="flex justify-start gap-4 pt-2">
                 {user ? (
@@ -161,6 +173,22 @@ export default function Landing() {
             <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-2 leading-relaxed">Every log entry, challenge completed, and tree saved helps create a measurable impact.</p>
             <div className="mt-6"><Link to="/register" className="btn-primary inline-flex items-center gap-2">Join the Platform Now <FiArrowRight /></Link></div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="max-w-3xl mx-auto px-6 py-20 border-t border-gray-200/50 dark:border-white/5">
+        <div className="text-center mb-12 space-y-2">
+          <h3 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Frequently Asked Questions</h3>
+          <p className="text-gray-500 dark:text-gray-400 font-medium">Everything you need to know about EcoGuardian.</p>
+        </div>
+        <div className="space-y-3">
+          <FAQItem question="How is my carbon footprint calculated?" answer="EcoGuardian uses a bottom-up, activity-based approach consistent with IPCC Guidelines. For each trip we multiply distance by a mode- and vehicle-specific emission factor, then divide shared private trips by the number of occupants — so a four-person carpool counts as a quarter of the journey each. Factors resolve from the most specific data available: your declared CO₂ per km, then vehicle category, then fuel efficiency, then a generic mode average." />
+          <FAQItem question="What is the Mobility Twin simulator?" answer="The Mobility Twin lets you model 'what-if' commute changes before making them. You can simulate shifting car km to the metro or bus, sharing a ride with more occupants, or swapping to an EV — and see the projected daily CO₂ reduction, yearly savings, and equivalent trees needed. It runs against your most recently logged trips, so log at least one trip first." />
+          <FAQItem question="How does the AI predict my future emissions?" answer="EcoGuardian trains a personalized XGBoost machine learning model on your historical carbon entries. With 30+ entries, it uses full ML predictions; with 10-30 entries, a hybrid approach; and with fewer than 10, a rolling average fallback. All predictions are explained via SHAP values." />
+          <FAQItem question="What is Explainable AI (SHAP)?" answer="SHAP (SHapley Additive exPlanations) reveals which travel modes and trip patterns contribute most to your carbon footprint. It shows both the percentage contribution of each mode and the model's feature importance — so you know exactly which commutes to focus your reduction efforts on." />
+          <FAQItem question="Is my data secure?" answer="Yes. Each user, department, and organization has isolated data with scoped ML models. We use JWT authentication, bcrypt password hashing, rate limiting, and role-based access control. In development, data uses an in-memory MongoDB server that resets on restart." />
+          <FAQItem question="Can this be used across an entire campus or company?" answer="Absolutely. EcoGuardian supports a 4-tier role hierarchy: Super Admin manages organizations, Organization Admin manages departments and users, Faculty monitors department analytics, and members log their daily trips. Each role has its own dashboard and permissions." />
         </div>
       </section>
 

@@ -6,8 +6,60 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/register', (req, res) => {
-  res.status(403).json({ message: 'Public registration is disabled. Please contact your administrator.' });
+/**
+ * Public self-registration — creates INDIVIDUAL users only (spec §1/§3).
+ * Individual users have no collegeId/departmentId (optional tenancy).
+ * Institutional accounts are provisioned by organization admins, never here.
+ */
+router.post('/register', [
+  body('name').trim().isLength({ min: 2, max: 80 }).withMessage('Name must be 2-80 characters'),
+  body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0]?.msg || 'Invalid input' });
+  }
+
+  const { name, email, password } = req.body;
+
+  const existing = await User.findOne({ email: email.toLowerCase() });
+  if (existing) {
+    return res.status(409).json({ message: 'An account with this email already exists' });
+  }
+
+  // Sequential individual ID: IND0001, IND0002, ...
+  const lastInd = await User.findOne({ userId: /^IND/ }).sort({ createdAt: -1 }).select('userId').lean();
+  const nextSeq = lastInd ? (parseInt(lastInd.userId.replace('IND', ''), 10) || 0) + 1 : 1;
+  const userId = `IND${String(nextSeq).padStart(4, '0')}`;
+
+  const user = await User.create({
+    userId,
+    name,
+    email,
+    password,
+    role: 'individual',
+    collegeId: null,
+    departmentId: null,
+    firstLogin: false,
+  });
+
+  res.status(201).json({
+    _id: user._id,
+    userId: user.userId,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    collegeId: null,
+    departmentId: null,
+    semester: '',
+    section: '',
+    firstLogin: false,
+    status: user.status,
+    gamification: user.gamification,
+    profile: user.profile,
+    token: generateToken(user._id),
+  });
 });
 
 router.post('/login', [

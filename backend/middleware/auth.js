@@ -2,6 +2,11 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const protect = async (req, res, next) => {
+  // Idempotent: the per-user rate limiters are mounted behind `protect` so their
+  // key generator can see req.user, and each route re-declares `protect`. Bail
+  // out early on the second pass instead of paying a second User.findById.
+  if (req.user) return next();
+
   let token;
   if (req.headers.authorization?.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];

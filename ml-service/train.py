@@ -1,7 +1,13 @@
-"""Standalone training script for the carbon emission prediction model.
+"""Standalone training script for the transportation CO2 prediction model.
 
-Generates synthetic training data from the emission factor library,
-trains an XGBoost model with cross-validation, and saves it to models/.
+v3.0.0 — TRANSPORTATION-ONLY.
+
+Synthetic data is generated from MOBILITY ARCHETYPES (car commuter, carpool,
+metro user, cyclist, EV owner, etc.) producing realistic daily trip lists.
+Targets are occupancy-allocated personal transport emissions computed by the
+same engine used in production (emission_utils.calculate_trips).
+
+ALL synthetic data is clearly labelled: meta.synthetic = true.
 
 Usage:
     python train.py                          # Train with synthetic data
@@ -15,7 +21,6 @@ import sys
 import argparse
 import json
 import random
-from collections import OrderedDict
 import numpy as np
 import pandas as pd
 from xgboost import XGBRegressor
@@ -25,90 +30,84 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import joblib
 
 sys.path.insert(0, os.path.dirname(__file__))
-from emission_utils import EMISSION_FACTORS, calculate_emissions
+from emission_utils import calculate_trips  # noqa: E402
+from predictor import FEATURE_COLS, MODEL_VERSION  # single source of truth
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-FEATURE_COLS = [
-    "transport_total", "electricity", "water", "food_val",
-    "shopping_val", "waste_val", "fuel_total", "day_of_week",
-    "car_occupants",
+
+# ---------------------------------------------------------------------------
+# Synthetic mobility archetypes (SYNTHETIC DATA - not real measurements)
+# ---------------------------------------------------------------------------
+def _trip(mode, lo, hi, occupants=1, purpose="commute", freq=1, vehicle=None):
+    trip = {
+        "mode": mode,
+        "distanceKm": round(random.uniform(lo, hi), 1),
+        "occupants": occupants,
+        "tripFrequency": freq,
+        "purpose": purpose,
+    }
+    if vehicle:
+        trip["vehicle"] = vehicle
+    return trip
+
+
+ARCHETYPES = [
+    # Solo petrol-car commuter
+    lambda: [_trip("car", 10, 30, 1, "office", vehicle={"category": random.choice(["hatchback", "sedan", "suv"]), "fuelType": "petrol"})],
+    # Carpool commuter (2-5 occupants)
+    lambda: [_trip("car", 12, 35, random.randint(2, 5), "office", vehicle={"category": random.choice(["hatchback", "sedan"]), "fuelType": "petrol"})],
+    # Metro + walk user
+    lambda: [_trip("metro", 8, 25), _trip("walk", 0.8, 3)],
+    # Bus + walk user
+    lambda: [_trip("bus", 6, 20), _trip("walk", 0.5, 2)],
+    # Cyclist
+    lambda: [_trip("bicycle", 3, 12)] + ([_trip("metro", 5, 15)] if random.random() < 0.3 else []),
+    # Motorcyclist (sometimes with pillion)
+    lambda: [_trip("motorcycle", 8, 25, 1 if random.random() < 0.7 else 2, vehicle={"category": random.choice(["scooter", "standard"]), "fuelType": "petrol"})],
+    # Auto-rickshaw user
+    lambda: [_trip("auto_rickshaw", 4, 14, random.randint(1, 3), vehicle={"category": "standard", "fuelType": random.choice(["cng", "petrol"])})],
+    # EV owner (declared consumption sometimes)
+    lambda: [_trip("ev", 10, 30, 1 if random.random() < 0.7 else random.randint(2, 4), "office",
+                   vehicle=({"electricityConsumptionKwhPerKm": round(random.uniform(0.12, 0.19), 3)}
+                            if random.random() < 0.5 else {"category": "hatchback", "fuelType": "electric"}))],
+    # Multimodal mix
+    lambda: random.sample(
+        [_trip("car", 5, 18, 1), _trip("metro", 6, 20), _trip("bus", 4, 12), _trip("bicycle", 2, 8), _trip("walk", 0.5, 2)],
+        k=random.randint(2, 3),
+    ),
+    # Frequent flyer (rare long flight day)
+    lambda: [_trip("flight", 500, 2000, purpose="other")] + [_trip("car", 5, 20, 1)],
 ]
 
-FOOD_OPTIONS = list(EMISSION_FACTORS["food"].keys())
-SHOP_OPTIONS = list(EMISSION_FACTORS["shopping"].keys())
-WASTE_OPTIONS = list(EMISSION_FACTORS["waste"].keys())
-TRANSPORT_MODES = list(EMISSION_FACTORS["transport"].keys())
-FUEL_TYPES = list(EMISSION_FACTORS["fuel"].keys())
-FOOD_MAP = EMISSION_FACTORS["food"]
-SHOP_MAP = EMISSION_FACTORS["shopping"]
-WASTE_MAP = EMISSION_FACTORS["waste"]
+ARCHETYPE_WEIGHTS = [0.16, 0.12, 0.16, 0.12, 0.10, 0.10, 0.06, 0.08, 0.08, 0.02]
 
 
-def generate_synthetic_sample():
-    """Generate one realistic carbon entry and return (features_dict, target)."""
-    transport = {}
-    for mode in TRANSPORT_MODES:
-        if random.random() < 0.6:
-            transport[mode] = round(random.uniform(0, 30), 1)
-
-    # Occupancy-aware: most trips solo, some shared (carpool / family)
-    occupants = 1 if random.random() < 0.55 else random.randint(2, 6)
-    transport["carOccupants"] = occupants
-
-    electricity = round(random.uniform(2, 20), 1)
-    water = round(random.uniform(30, 300), 0)
-    food_habit = random.choice(FOOD_OPTIONS)
-    shopping = random.choice(SHOP_OPTIONS)
-    waste = random.choice(WASTE_OPTIONS)
-
-    fuel = {}
-    for ftype in FUEL_TYPES:
-        if random.random() < 0.3:
-            fuel[ftype] = round(random.uniform(0.5, 5), 1)
-
-    solar = random.random() < 0.15
+def generate_synthetic_entry():
+    """Generate one synthetic day of mobility; returns an entry dict with target set."""
+    archetype = random.choices(ARCHETYPES, weights=ARCHETYPE_WEIGHTS, k=1)[0]
+    trips = [t for t in archetype() if t["distanceKm"] > 0]
+    result = calculate_trips(trips)
 
     entry = {
-        "transport": transport,
-        "electricity": electricity,
-        "water": water,
-        "foodHabit": food_habit,
-        "shoppingFrequency": shopping,
-        "wasteGeneration": waste,
-        "fuel": fuel,
-        "solarPanels": solar,
+        "trips": trips,
+        "date": pd.Timestamp("2024-01-01") + pd.Timedelta(days=random.randint(0, 365)),
+        "transportPersonal": result["transportPersonal"],
     }
-
-    result = calculate_emissions(entry)
-    target = result["total"] + round(random.gauss(0, result["total"] * 0.05), 2)
-
-    features = OrderedDict([
-        ("transport_total", sum(v for k, v in transport.items() if k != "carOccupants")),
-        ("electricity", electricity),
-        ("water", water),
-        ("food_val", FOOD_MAP[food_habit]),
-        ("shopping_val", SHOP_MAP[shopping]),
-        ("waste_val", WASTE_MAP[waste]),
-        ("fuel_total", sum(fuel.values())),
-        ("day_of_week", random.randint(0, 6)),
-        ("car_occupants", occupants),
-    ])
-
-    return features, max(0, target)
+    return entry
 
 
 def generate_synthetic_dataset(n_samples=500):
-    """Generate a full synthetic dataset."""
-    print(f"Generating {n_samples} synthetic samples...")
-    rows = []
-    targets = []
-    for _ in range(n_samples):
-        features, target = generate_synthetic_sample()
-        rows.append(features)
-        targets.append(target)
-    return pd.DataFrame(rows), np.array(targets)
+    """Generate a full synthetic dataset (features via predictor's extractor)."""
+    from predictor import _history_to_df  # exact serving-time feature extraction
+
+    print(f"Generating {n_samples} SYNTHETIC mobility samples (archetype-based)...")
+    entries = [generate_synthetic_entry() for _ in range(n_samples)]
+    df = _history_to_df(entries)
+    y = df["target"].values.astype(float)
+    X_df = df[FEATURE_COLS]
+    return X_df, y
 
 
 def load_csv_data(path):
@@ -198,7 +197,7 @@ def train_model(X, y, cv_folds=0):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train carbon emission prediction model")
+    parser = argparse.ArgumentParser(description="Train transportation CO2 prediction model")
     parser.add_argument("--samples", type=int, default=500, help="Synthetic samples to generate")
     parser.add_argument("--load", type=str, help="Load CSV file instead of synthetic data")
     parser.add_argument("--cv", type=int, default=5, help="Cross-validation folds (default: 5)")
@@ -213,9 +212,11 @@ def main():
 
     if args.load:
         X, y = load_csv_data(args.load)
+        synthetic = False
     else:
         X_df, y = generate_synthetic_dataset(args.samples)
         X = X_df.values
+        synthetic = True
 
     print(f"Training on {len(y)} samples with {len(FEATURE_COLS)} features")
     print(f"Features: {FEATURE_COLS}")
@@ -237,12 +238,10 @@ def main():
         print(f"  {feat}: {imp:.4f}")
     print()
 
-    # Determine output path: explicit, or scoped path, or legacy global path
     if args.output:
         output_path = args.output
         meta_path = os.path.join(os.path.dirname(output_path), "model_meta.json")
     else:
-        # Use scoped filename so the model is discoverable by predictor.py
         model_filename = f"carbon_model_{args.scope}_{args.scope_id}.pkl"
         meta_filename = f"model_meta_{args.scope}_{args.scope_id}.json"
         output_path = os.path.join(MODEL_DIR, model_filename)
@@ -251,11 +250,15 @@ def main():
     meta = {
         "n_samples": len(y),
         "n_features": len(FEATURE_COLS),
+        "feature_schema": list(FEATURE_COLS),
         "metrics": metrics,
         "feature_importance": importance,
-        "version": "2.1.0",
+        "version": MODEL_VERSION,
         "scope": args.scope,
         "scope_id": args.scope_id,
+        "synthetic": synthetic,
+        "data_note": ("SYNTHETIC archetype-based training data - metrics describe fit to "
+                      "simulated commuters, NOT real-world accuracy") if synthetic else "user-supplied CSV",
         "training_date": pd.Timestamp.now().isoformat(),
     }
 

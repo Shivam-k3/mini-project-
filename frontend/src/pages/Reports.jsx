@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { reportsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import CopyButton from '../components/CopyButton';
 import { FiDownload, FiFileText, FiEye, FiZap } from 'react-icons/fi';
 
 export default function Reports() {
@@ -45,8 +46,9 @@ export default function Reports() {
         
         {/* Left: Notion-inspired Paper Document Preview (7 cols) */}
         <div className="lg:col-span-7 space-y-3">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 flex items-center gap-1">
-            <FiEye /> Document Page Preview
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 flex items-center justify-between">
+            <span className="flex items-center gap-1"><FiEye /> Document Page Preview</span>
+            <CopyButton text="EcoGuardian Carbon Audit Report - Daily Avg: 10.7 kg | Weekly: 74.9 kg | Monthly: 321.3 kg" label="Copy Summary" />
           </span>
           
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-white/5 rounded-3xl shadow-xl p-8 sm:p-12 text-left space-y-8 relative overflow-hidden transition-all duration-300">
@@ -99,9 +101,9 @@ export default function Reports() {
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider border-l-2 border-eco-500 pl-2">AI Optimization Recommendations</h4>
               <div className="space-y-2 text-xs text-gray-500 leading-relaxed font-medium">
-                <p>1. **Grid Electricity Cuts**: Reduce standby power by 20% to save approximately 0.95 kg CO₂ daily.</p>
+                <p>1. **Mode Shift**: Moving short car trips to metro cuts roughly 0.17 kg CO₂ per km travelled.</p>
                 <p>2. **Alternative Commute**: Transitioning short drives to bus/metro offsets emissions by 50%.</p>
-                <p>3. **Nutritional Offsets**: A vegetable diet reduces food footprint variables significantly.</p>
+                <p>3. **Carpool Occupancy**: Sharing a car with 3 others splits the same trip's emissions four ways.</p>
               </div>
             </div>
 
@@ -119,7 +121,7 @@ export default function Reports() {
           </span>
           <div className="glass-card p-5 space-y-4">
             {[
-              { title: 'Utility Audit Breakdown', desc: 'Daily, weekly, and monthly footprint summaries categorized by transport, utility grid, nutrition, and waste variables.', icon: '📊' },
+              { title: 'Travel Mode Breakdown', desc: 'Daily, weekly, and monthly footprint summaries categorized by travel mode, trip purpose, and vehicle occupancy.', icon: '📊' },
               { title: 'Fine-Tuned AI Recommendations', desc: 'Personalized Decarbonization plans and action paths computed by LLM models using your logging history.', icon: '🤖' },
               { title: 'Yearly Trend Forecasts', desc: 'Visual models predicting next week and next month carbon budgets using gradient boosting algorithms.', icon: '📈' }
             ].map((item) => (

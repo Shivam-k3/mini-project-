@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { superAdminAPI, collegeAdminAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { AdminSkeleton } from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { 
   FiPlus, FiUsers, FiSliders, FiShield, FiFileText, FiLayers, FiAlertCircle, 
   FiRefreshCw, FiTrash2, FiUserCheck, FiUserX, FiUpload, FiDownload, FiCheck, FiX, FiCheckCircle
@@ -45,6 +46,9 @@ function SuperAdminWorkspace() {
   // Global Announcement
   const [announcements, setAnnouncements] = useState([]);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
+
+  // Confirm dialog state
+  const [confirmState, setConfirmState] = useState({ open: false, type: '', targetId: null });
 
   useEffect(() => {
     fetchData();
@@ -105,14 +109,32 @@ function SuperAdminWorkspace() {
   };
 
   const handleDeleteCollege = async (id) => {
-    if (!confirm('Are you absolutely sure? This will delete all departments, users, and carbon entries for this college!')) return;
+    setConfirmState({ open: true, type: 'deleteCollege', targetId: id });
+  };
+
+  const executeConfirm = async () => {
+    const { type, targetId } = confirmState;
+    setConfirmState({ open: false, type: '', targetId: null });
     try {
-      await superAdminAPI.deleteCollege(id);
-      toast.success('College deleted successfully');
-      fetchData();
+      if (type === 'deleteCollege') {
+        await superAdminAPI.deleteCollege(targetId);
+        toast.success('College deleted successfully');
+        fetchData();
+      } else if (type === 'resetPassword') {
+        await collegeAdminAPI.resetPassword(targetId);
+        toast.success('Password reset to Temp@123');
+      } else if (type === 'deleteUser') {
+        await collegeAdminAPI.deleteUser(targetId);
+        toast.success('Account deleted successfully');
+        fetchData();
+      }
     } catch {
-      toast.error('Failed to delete college');
+      toast.error('Operation failed');
     }
+  };
+
+  const CONFIRM_CONFIG = {
+    deleteCollege: { title: 'Delete College?', message: 'Are you absolutely sure? This will delete all departments, users, and carbon entries for this college!', confirmLabel: 'Delete College', danger: true },
   };
 
   const handlePostAnnouncement = async (e) => {
@@ -129,6 +151,15 @@ function SuperAdminWorkspace() {
 
   return (
     <div className="space-y-6 animate-slide-up">
+      <ConfirmDialog
+        open={confirmState.open}
+        title={CONFIRM_CONFIG[confirmState.type]?.title || ''}
+        message={CONFIRM_CONFIG[confirmState.type]?.message || ''}
+        confirmLabel={CONFIRM_CONFIG[confirmState.type]?.confirmLabel || 'Confirm'}
+        danger={CONFIRM_CONFIG[confirmState.type]?.danger || false}
+        onConfirm={executeConfirm}
+        onCancel={() => setConfirmState({ open: false, type: '', targetId: null })}
+      />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white font-Outfit">Super Admin Console</h1>
@@ -444,6 +475,9 @@ function CollegeAdminWorkspace() {
   const [challenges, setChallenges] = useState([]);
   const [newChallenge, setNewChallenge] = useState({ title: '', description: '', category: 'general', points: 50 });
 
+  // Confirm dialog state
+  const [confirmState, setConfirmState] = useState({ open: false, type: '', targetId: null });
+
   useEffect(() => {
     fetchDepartments();
     fetchData();
@@ -507,13 +541,7 @@ function CollegeAdminWorkspace() {
   };
 
   const handleResetPassword = async (id) => {
-    if (!confirm('Reset password to default "Temp@123"? User will be forced to change it on next login.')) return;
-    try {
-      await collegeAdminAPI.resetPassword(id);
-      toast.success('Password reset to Temp@123');
-    } catch {
-      toast.error('Failed to reset password.');
-    }
+    setConfirmState({ open: true, type: 'resetPassword', targetId: id });
   };
 
   const handleToggleUserStatus = async (userAcc) => {
@@ -528,14 +556,29 @@ function CollegeAdminWorkspace() {
   };
 
   const handleDeleteUser = async (id) => {
-    if (!confirm('Are you sure? This will delete this user and all their logged carbon activities!')) return;
+    setConfirmState({ open: true, type: 'deleteUser', targetId: id });
+  };
+
+  const executeConfirm = async () => {
+    const { type, targetId } = confirmState;
+    setConfirmState({ open: false, type: '', targetId: null });
     try {
-      await collegeAdminAPI.deleteUser(id);
-      toast.success('Account deleted successfully');
-      fetchData();
+      if (type === 'resetPassword') {
+        await collegeAdminAPI.resetPassword(targetId);
+        toast.success('Password reset to Temp@123');
+      } else if (type === 'deleteUser') {
+        await collegeAdminAPI.deleteUser(targetId);
+        toast.success('Account deleted successfully');
+        fetchData();
+      }
     } catch {
-      toast.error('Failed to delete account');
+      toast.error('Operation failed');
     }
+  };
+
+  const CONFIRM_CONFIG = {
+    resetPassword: { title: 'Reset Password?', message: 'Reset password to default "Temp@123"? User will be forced to change it on next login.', confirmLabel: 'Reset Password', danger: false },
+    deleteUser: { title: 'Delete User?', message: 'Are you sure? This will delete this user and all their logged carbon activities!', confirmLabel: 'Delete User', danger: true },
   };
 
   const handleCSVImport = async (e) => {
@@ -579,6 +622,15 @@ function CollegeAdminWorkspace() {
 
   return (
     <div className="space-y-6 animate-slide-up">
+      <ConfirmDialog
+        open={confirmState.open}
+        title={CONFIRM_CONFIG[confirmState.type]?.title || ''}
+        message={CONFIRM_CONFIG[confirmState.type]?.message || ''}
+        confirmLabel={CONFIRM_CONFIG[confirmState.type]?.confirmLabel || 'Confirm'}
+        danger={CONFIRM_CONFIG[confirmState.type]?.danger || false}
+        onConfirm={executeConfirm}
+        onCancel={() => setConfirmState({ open: false, type: '', targetId: null })}
+      />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white font-Outfit">Campus Administration</h1>
@@ -842,9 +894,6 @@ function CollegeAdminWorkspace() {
                   >
                     <option value="general">General</option>
                     <option value="transport">Transport</option>
-                    <option value="energy">Energy</option>
-                    <option value="food">Food</option>
-                    <option value="waste">Waste</option>
                   </select>
                 </div>
               </div>

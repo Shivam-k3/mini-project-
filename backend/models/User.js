@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['super_admin', 'college_admin', 'faculty', 'student'], default: 'student' },
+  role: { type: String, enum: ['super_admin', 'college_admin', 'faculty', 'student', 'individual'], default: 'individual' },
   collegeId: { type: mongoose.Schema.Types.ObjectId, ref: 'College', default: null },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
   semester: { type: String, default: '' },

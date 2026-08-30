@@ -11,15 +11,15 @@ const SUGGESTIONS = [
 
 const HISTORIES = [
   { id: 1, title: 'Commute offsets advice', date: 'Today' },
-  { id: 2, title: 'Dietary carbon savings', date: 'Yesterday' },
-  { id: 3, title: 'Solar panel feasibility', date: '3 days ago' },
+  { id: 2, title: 'Carpool vs metro savings', date: 'Yesterday' },
+  { id: 3, title: 'EV vs petrol comparison', date: '3 days ago' },
 ];
 
 export default function Assistant() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hello! I'm EcoGuardian, your personal sustainability advisor. I analyze your carbon entries, commute metrics, and utility bills to give you tailored recommendations.\n\nHow can I help you reduce your carbon footprint today?",
+      content: "Hello! I'm EcoGuardian, your personal mobility advisor. I analyze your logged trips, travel modes and vehicle occupancy to give you tailored recommendations.\n\nHow can I help you cut your commute emissions today?",
       time: '12:00 PM'
     },
   ]);
@@ -175,7 +175,7 @@ export default function Assistant() {
               <input
                 type="text"
                 className="input-field flex-1 text-xs"
-                placeholder="Ask EcoGuardian for Decarbonization blueprints, nutritional guides..."
+                placeholder="Ask about mode shifts, carpooling, EV swaps..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !loading && sendMessage()}

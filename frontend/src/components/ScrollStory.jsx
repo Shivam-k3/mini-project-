@@ -9,7 +9,7 @@ const steps = [
   {
     icon: FiGlobe,
     title: 'Measure Your Footprint',
-    desc: 'Log daily activities across transport, energy, food, and water to build your carbon profile.',
+    desc: 'Log your daily trips — mode, distance, vehicle and occupancy — to build your mobility carbon profile.',
     color: 'text-eco-500',
     bg: 'bg-eco-500/5',
   },
@@ -23,7 +23,7 @@ const steps = [
   {
     icon: FiTrendingUp,
     title: 'Simulate & Optimize',
-    desc: 'Run digital twin simulations to test lifestyle changes before making real-world decisions.',
+    desc: 'Run mobility twin simulations to test commute changes before making real-world decisions.',
     color: 'text-ocean-500',
     bg: 'bg-ocean-500/5',
   },

@@ -1,17 +1,19 @@
-"""EcoGuardian AI - ML Service for Carbon Prediction & Explainable AI.
+"""EcoGuardian AI - ML Service for Transportation CO2 Prediction & Explainable AI.
+
+v3.0.0 — TRANSPORTATION-ONLY.
 
 Provides REST endpoints for:
-  - /predict       : Train on history + get predictions (user/dept/college scoped)
-  - /train-entity  : Batch-train a model for a department or college (no prediction)
+  - /predict       : Train on mobility history + get forecasts (user/dept/org scoped)
+  - /train-entity  : Batch-train a model for a department or organization
   - /predict-entity: Get forecasts from a pre-trained entity model
-  - /explain       : SHAP-based explanation of emission breakdown
-  - /simulate      : Digital twin scenario simulation
+  - /explain       : SHAP-based explanation of transport mode breakdown
+  - /simulate      : Digital twin scenario simulation (trips-aware)
   - /health        : Service health check
 
 Multi-tenant scope support:
   - "user"       scope_id = user's MongoDB _id
   - "department" scope_id = department's MongoDB _id
-  - "college"    scope_id = college's MongoDB _id
+  - "college"    scope_id = college/organization's MongoDB _id
 
 Each scope/scope_id combination gets its own model file on disk so models
 never collide — enabling a distributed campus architecture.
@@ -22,9 +24,14 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from predictor import train_and_predict, train_entity_model, predict_with_model
+from predictor import (
+    train_and_predict,
+    train_entity_model,
+    predict_with_model,
+    MODEL_VERSION,
+)
 from shap_explainer import explain_emissions
-from emission_utils import calculate_emissions
+from emission_utils import calculate_trips, calculate_emissions
 
 load_dotenv()
 
@@ -34,40 +41,37 @@ CORS(app)
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Simple health-check endpoint."""
     return jsonify({
         "status": "ok",
-        "service": "EcoGuardian ML Service",
+        "service": "EcoGuardian Mobility ML Service",
+        "modelVersion": MODEL_VERSION,
+        "domain": "transportation",
         "features": ["prediction", "shap_explanation", "digital_twin"],
     })
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    """Train on user/entity history and return forecasts.
+    """Train on user/entity mobility history and return forecasts.
 
     Request body:
     {
-        "history": [ ... carbon entry docs ... ],
+        "history": [ ... carbon entry docs (trips[] or legacy transport km) ... ],
         "scope": "user" | "department" | "college",   (default: "user")
         "scope_id": "...",                              (default: user_id or None)
         "user_id": "..."                                 (legacy, used as scope_id for user scope)
     }
 
-    The model is saved to a scope-specific file so that entity-level models
-    (departments, colleges) are preserved and reusable across requests.
+    Response includes the honest prediction method used:
+      insufficient_data | rolling_average | hybrid | xgboost
     """
     data = request.json or {}
     history = data.get("history", [])
 
-    # Determine scope and scope_id
-    # Backward compatibility: if "user_id" is provided without scope info,
-    # treat it as a user-scoped request.
     scope = data.get("scope", "user")
     scope_id = data.get("scope_id")
 
     if not scope_id:
-        # Fall back to legacy user_id for user-scope requests
         if scope == "user":
             scope_id = data.get("user_id", "anonymous")
         else:
@@ -79,18 +83,7 @@ def predict():
 
 @app.route("/train-entity", methods=["POST"])
 def train_entity():
-    """Batch-train a model for a department or college without returning predictions.
-
-    This is useful for faculty/college-admin dashboards that want to pre-train
-    entity-level models during off-peak hours.
-
-    Request body:
-    {
-        "scope": "department" | "college",
-        "scope_id": "...",
-        "history": [ ... aggregated carbon entries ... ]
-    }
-    """
+    """Batch-train a model for a department or organization without predictions."""
     data = request.json or {}
     scope = data.get("scope")
     scope_id = data.get("scope_id")
@@ -107,15 +100,7 @@ def train_entity():
 
 @app.route("/predict-entity", methods=["POST"])
 def predict_entity():
-    """Get forecasts from a pre-trained entity model without retraining.
-
-    Request body:
-    {
-        "scope": "department" | "college",
-        "scope_id": "...",
-        "latest_entry": { ... single carbon entry ... }  (optional)
-    }
-    """
+    """Get forecasts from a pre-trained entity model without retraining."""
     data = request.json or {}
     scope = data.get("scope")
     scope_id = data.get("scope_id")
@@ -132,24 +117,24 @@ def predict_entity():
 
 @app.route("/explain", methods=["POST"])
 def explain():
-    """Generate SHAP-style explanation of an emission breakdown.
+    """Generate SHAP-style explanation of a transport MODE breakdown.
 
     Request body:
     {
-        "breakdown": { "transport": 5.2, "electricity": 3.8, ... },
-        "total": 23.83,
+        "breakdown": { "car": 2.1, "metro": 0.4, ... },   per-mode personal kg CO2
+        "total": 2.5,
         "scope": "user" | "department" | "college",   (optional)
         "scope_id": "..."                               (optional)
     }
 
-    When scope and scope_id are provided, the explainer loads the corresponding
-    trained model to produce real SHAP feature importance values.
+    Real TreeExplainer output is attached only when a v3 scoped XGBoost model
+    exists; otherwise the composition approximation is returned with an
+    honest method label.
     """
     data = request.json or {}
     breakdown = data.get("breakdown", {})
     total = data.get("total", sum(breakdown.values()) if breakdown else 0)
 
-    # Optional scope for model-aware SHAP (loads the correct entity model)
     scope = data.get("scope", "user")
     scope_id = data.get("scope_id", "anonymous")
 
@@ -161,46 +146,91 @@ def explain():
 def simulate():
     """Digital twin: compare baseline vs. changed scenario emissions.
 
-    Request body:
-    {
-        "baseline": { "transport": {"car": 20}, "electricity": 10, ... },
-        "changes":  { "transportMode": "car", "transportKm": 5, ... }
-    }
+    Trips-aware: baseline may contain `trips` (canonical v3 shape) or legacy
+    `transport` km maps. Changes support:
+
+      - replaceMode: move km from one mode to another
+        { "replaceMode": "car", "newMode": "metro", "kmPerDay": 10 }
+      - occupancy change for split modes:
+        { "mode": "car", "occupants": 4 }
+      - vehicle replacement:
+        { "vehicleSwap": { "category": "hatchback", "fuelType": "petrol" -> ev } }
+      - legacy single-mode edits (transportMode/transportKm) still supported.
     """
     data = request.json or {}
     baseline = data.get("baseline", {})
     changes = data.get("changes", {})
 
-    modified = {**baseline, **changes}
+    def _result_for(entry):
+        if entry.get("trips"):
+            return calculate_trips(entry["trips"])
+        return calculate_emissions(entry)
 
-    if changes.get("transportMode") and changes.get("transportKm"):
-        modified["transport"] = dict(baseline.get("transport", {}))
-        modified["transport"][changes["transportMode"]] = changes["transportKm"]
-        if changes.get("replaceMode"):
-            modified["transport"][changes["replaceMode"]] = 0
+    scenario_entry = {**baseline}
 
-    # Carpool / occupancy change: apply occupants to the vehicle trips
-    if changes.get("carOccupants"):
-        modified["transport"] = dict(baseline.get("transport", {}))
-        modified["transport"]["carOccupants"] = max(1, min(8, int(float(changes["carOccupants"]))))
+    # ---- trips-based scenarios --------------------------------------------
+    if baseline.get("trips"):
+        trips = [dict(t) for t in baseline["trips"]]
 
-    if changes.get("electricityReduction"):
-        modified["electricity"] = baseline.get("electricity", 0) * (1 - changes["electricityReduction"] / 100)
+        # Mode replacement: shift km from replaceMode to newMode
+        if changes.get("replaceMode") and changes.get("newMode"):
+            km = float(changes.get("kmPerDay") or 0)
+            remaining = []
+            moved = 0.0
+            for t in trips:
+                if t.get("mode") == changes["replaceMode"]:
+                    moved += float(t.get("distanceKm", 0))
+                else:
+                    remaining.append(t)
+            if km <= 0:
+                km = moved
+            if km > 0:
+                new_trip = {"mode": changes["newMode"], "distanceKm": round(km, 1),
+                            "tripFrequency": 1, "purpose": "commute"}
+                if changes["newMode"] == "car":
+                    new_trip["occupants"] = int(changes.get("occupants", 1)) or 1
+                remaining.append(new_trip)
+            trips = remaining
 
-    if changes.get("foodHabit"):
-        modified["foodHabit"] = changes["foodHabit"]
+        # Occupancy change on a specific split mode
+        if changes.get("mode") and changes.get("occupants"):
+            occ = max(1, min(8, int(float(changes["occupants"]))))
+            for t in trips:
+                if t.get("mode") == changes["mode"]:
+                    t["occupants"] = occ
 
-    if changes.get("solarPanels"):
-        modified["solarPanels"] = True
+        # Vehicle swap to EV (or another category/fuel)
+        if changes.get("vehicleSwap"):
+            swap = changes["vehicleSwap"]
+            for t in trips:
+                if t.get("mode") in ("car", "ev", "motorcycle") and not changes.get("onlyMode") \
+                        or (changes.get("onlyMode") and t.get("mode") == changes["onlyMode"]):
+                    t["vehicle"] = dict(swap)
+                    if swap.get("fuelType") == "electric":
+                        t["mode"] = "ev"
 
-    baseline_result = calculate_emissions(baseline)
-    scenario_result = calculate_emissions(modified)
+        scenario_entry["trips"] = trips
+    else:
+        # ---- legacy lifestyle-shape scenarios ------------------------------
+        modified = {**baseline, **changes}
+        if changes.get("transportMode") and changes.get("transportKm"):
+            modified["transport"] = dict(baseline.get("transport", {}))
+            modified["transport"][changes["transportMode"]] = changes["transportKm"]
+            if changes.get("replaceMode"):
+                modified["transport"][changes["replaceMode"]] = 0
+        if changes.get("carOccupants"):
+            modified["transport"] = dict(baseline.get("transport", {}))
+            modified["transport"]["carOccupants"] = max(1, min(8, int(float(changes["carOccupants"]))))
+        scenario_entry = modified
 
-    reduction = round(baseline_result["total"] - scenario_result["total"], 2)
-    reduction_pct = (
-        round((reduction / baseline_result["total"]) * 100, 1)
-        if baseline_result["total"] > 0 else 0
-    )
+    baseline_result = _result_for(baseline)
+    scenario_result = _result_for(scenario_entry)
+
+    b_total = baseline_result.get("transportPersonal", baseline_result.get("total", 0))
+    s_total = scenario_result.get("transportPersonal", scenario_result.get("total", 0))
+
+    reduction = round(b_total - s_total, 2)
+    reduction_pct = round((reduction / b_total) * 100, 1) if b_total > 0 else 0
 
     yearly_savings = round(reduction * 365, 1)
     trees_equivalent = round(yearly_savings / 21, 0)
@@ -218,5 +248,5 @@ def simulate():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    print(f"EcoGuardian ML Service starting on port {port}")
+    print(f"EcoGuardian Mobility ML Service starting on port {port}")
     app.run(host="0.0.0.0", port=port, debug=True)

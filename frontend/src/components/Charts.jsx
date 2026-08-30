@@ -3,6 +3,7 @@ import {
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale,
   LinearScale, PointElement, LineElement, BarElement, Filler,
 } from 'chart.js';
+import { formatBreakdownKey } from '../utils/modeLabels';
 
 ChartJS.register(
   ArcElement, Tooltip, Legend, CategoryScale,
@@ -12,9 +13,7 @@ ChartJS.register(
 const COLORS = ['#10b981', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4'];
 
 export function EmissionPieChart({ breakdown }) {
-  const labels = Object.keys(breakdown || {}).map(
-    (k) => k.charAt(0).toUpperCase() + k.slice(1)
-  );
+  const labels = Object.keys(breakdown || {}).map(formatBreakdownKey);
   const data = Object.values(breakdown || {});
 
   return (

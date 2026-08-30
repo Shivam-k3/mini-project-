@@ -31,7 +31,11 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (name, email, password) => {
-    throw new Error("Self registration is disabled.");
+    const { data } = await authAPI.register({ name, email, password });
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data));
+    setUser(data);
+    return data;
   };
 
   const logout = () => {
