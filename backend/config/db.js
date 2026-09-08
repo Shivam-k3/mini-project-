@@ -1,42 +1,35 @@
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-
-let mongoServer;
+/**
+ * Database bootstrap (Phase 3H — MongoDB removed).
+ *
+ * Supabase Auth + PostgreSQL are the SOLE datastore. This module no longer
+ * connects to MongoDB; it only verifies the Supabase configuration the app is
+ * going to talk to. MongoDB/mongoose/mongodb-memory-server are fully retired.
+ */
+const supabase = require('../services/supabase');
 
 const connectDB = async () => {
-  try {
-    let uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecoguardian';
-
-    console.log(`Connecting to MongoDB at: ${uri}`);
-    // Attempt local connection with a 4-second timeout to avoid long waits
-    const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 4000,
-    });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.warn(`Local MongoDB Connection Failed: ${error.message}`);
-    
-    // In dev mode, fall back to memory server automatically
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Starting In-Memory MongoDB Server fallback...');
-      try {
-        mongoServer = await MongoMemoryServer.create();
-        const fallbackUri = mongoServer.getUri();
-        console.log(`In-Memory MongoDB Server started at: ${fallbackUri}`);
-        
-        const conn = await mongoose.connect(fallbackUri);
-        console.log(`MongoDB Connected (In-Memory Fallback): ${conn.connection.host}`);
-        
-        // Update MONGODB_URI in process.env so that other parts of the backend see it
-        process.env.MONGODB_URI = fallbackUri;
-      } catch (fallbackError) {
-        console.error(`In-Memory Fallback Failed: ${fallbackError.message}`);
-        process.exit(1);
-      }
-    } else {
-      console.error('Fatal: Cannot connect to MongoDB in production environment');
+  if (!supabase.isConfigured()) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Fatal: Supabase is not configured in production environment');
       process.exit(1);
     }
+    console.warn('Supabase is not configured — API auth/tenancy features will be unavailable');
+    return;
+  }
+
+  // Poke the Supabase API to confirm the client credentials actually work.
+  try {
+    const { count } = await supabase.profilesClient()
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .limit(1);
+    console.log(`Supabase (PostgreSQL) connected — profiles reachable${count == null ? '' : ` (${count})`}`);
+  } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(`Fatal: Cannot reach Supabase in production: ${error.message}`);
+      process.exit(1);
+    }
+    console.warn(`Supabase connectivity check failed: ${error.message}`);
   }
 };
 

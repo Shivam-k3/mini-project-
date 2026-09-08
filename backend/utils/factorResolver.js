@@ -16,8 +16,7 @@
  * if the DB is unavailable the static dataset keeps the platform working.
  */
 const path = require('path');
-const mongoose = require('mongoose');
-const EmissionFactor = require('../models/EmissionFactor');
+const { resolve: resolveFactorCatalog } = require('../repositories/emissionFactorRepository');
 
 const FACTOR_DATASET = require(path.join(__dirname, '..', '..', 'config', 'emission-factors.json'));
 
@@ -95,17 +94,15 @@ function staticCategory(mode, category, fuelType) {
 /* ── Catalog (DB) lookups ─────────────────────────────────────────── */
 
 async function catalogExact(mode, vehicle) {
-  if (mongoose.connection.readyState !== 1) return null;
   try {
-    const row = await EmissionFactor.findOne({
-      mode,
-      manufacturer: norm(vehicle.manufacturer),
-      model: norm(vehicle.model),
-      variant: norm(vehicle.variant),
-      active: true,
-    }).lean();
+    const rows = await resolveFactorCatalog(mode, { manufacturer: norm(vehicle.manufacturer) });
+    const row = rows.find(
+      (r) => r.manufacturer === norm(vehicle.manufacturer)
+        && r.model === norm(vehicle.model)
+        && r.variant === norm(vehicle.variant)
+    );
     if (!row) return null;
-    const factor = row.kwh_per_km != null ? row.kwh_per_km * GRID_KG_PER_KWH : row.co2_kg_per_km;
+    const factor = row.kwh_per_km != null ? row.kwh_per_km * GRID_KG_PER_KWH : Number(row.co2_kg_per_km) || 0;
     const label = [row.manufacturer, row.model, row.variant].filter(Boolean).join(' ');
     return result(factor, 'vehicle-specific', sourceMeta(row), rowMethodology(row, `curated catalog entry for ${label}`));
   } catch {
@@ -114,17 +111,18 @@ async function catalogExact(mode, vehicle) {
 }
 
 async function catalogCategory(mode, category, fuelType) {
-  if (mongoose.connection.readyState !== 1) return null;
   try {
-    const row = await EmissionFactor.findOne({
-      mode,
-      vehicle_category: norm(category),
-      fuel_type: norm(fuelType),
-      manufacturer: '',
-      active: true,
-    }).lean();
+    const rows = await resolveFactorCatalog(mode, {
+      vehicleCategory: norm(category),
+      fuelType: norm(fuelType),
+    });
+    const row = rows.find(
+      (r) => r.vehicle_category === norm(category)
+        && r.fuel_type === norm(fuelType)
+        && !r.manufacturer
+    );
     if (!row) return null;
-    const factor = row.kwh_per_km != null ? row.kwh_per_km * GRID_KG_PER_KWH : row.co2_kg_per_km;
+    const factor = row.kwh_per_km != null ? row.kwh_per_km * GRID_KG_PER_KWH : Number(row.co2_kg_per_km) || 0;
     return result(
       factor,
       'category',

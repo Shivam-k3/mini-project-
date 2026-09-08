@@ -1,16 +1,14 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
+const supabase = require('../services/supabase');
 const seedHelper = require('./seedHelper');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecoguardian';
-
 async function seed() {
-  console.log('Connecting to MongoDB...');
-  await mongoose.connect(MONGODB_URI);
-  console.log('Connected to MongoDB.');
-  
+  if (!supabase.isConfigured()) {
+    console.error('Supabase not configured. Set SUPABASE_URL + SUPABASE_SECRET_KEY in backend/.env.');
+    process.exit(1);
+  }
+  console.log('Seeding PostgreSQL (Supabase)...');
   await seedHelper();
-  
   console.log('Seed complete!');
   process.exit(0);
 }

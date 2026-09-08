@@ -1,11 +1,27 @@
 const express = require('express');
-const CarbonEntry = require('../models/CarbonEntry');
-const Simulation = require('../models/Simulation');
 const { protect } = require('../middleware/auth');
 const { calculateTrips } = require('../utils/tripEngine');
 const { getDigitalTwinSimulation } = require('../utils/mlService');
+const { carbonRepository, simulationRepository, tenancyContext } = require('../repositories');
+const { toApiEntry } = require('../repositories/carbonSerializer');
+const { toApiSimulation } = require('../repositories/simulationSerializer');
 
 const router = express.Router();
+
+/**
+ * Tenant context for the authenticated request. Built exclusively from the
+ * verified Supabase profile (req.auth.profile) — never from request JSON/query,
+ * so user_id cannot be client-controlled.
+ */
+function authTenant(req) {
+  const profile = req.auth?.profile;
+  if (!profile) {
+    const e = new Error('Authenticated profile not available');
+    e.status = 401;
+    throw e;
+  }
+  return tenancyContext.fromProfile(profile);
+}
 
 // Mobility-only preset scenarios. `changes` follows the ML /simulate contract.
 const PRESET_SCENARIOS = [
@@ -58,7 +74,12 @@ router.post('/simulate', protect, async (req, res) => {
       return res.status(400).json({ message: 'changes object is required' });
     }
 
-    const latestEntry = await CarbonEntry.findOne({ user: req.user._id }).sort({ date: -1 });
+    const tenant = authTenant(req);
+
+    // Latest entry now comes from Supabase PostgreSQL (Phase 3B). Order by date
+    // descending (newest first), exactly matching the previous Mongo query.
+    const latestRows = await carbonRepository.listByUser(tenant, { limit: 1 });
+    const latestEntry = latestRows.length ? toApiEntry(latestRows[0]) : null;
 
     // ---- Trips-aware simulation (v3) --------------------------------------
     if (latestEntry && Array.isArray(latestEntry.trips) && latestEntry.trips.length > 0) {
@@ -88,8 +109,7 @@ router.post('/simulate', protect, async (req, res) => {
         ? Math.round((reduction / baselineResult.transportPersonal) * 1000) / 10
         : 0;
 
-      const simulation = await Simulation.create({
-        user: req.user._id,
+      const simulation = await simulationRepository.create(tenant, {
         name: name || 'Mobility Scenario',
         baseline: { trips: baselineTrips },
         changes,
@@ -118,13 +138,12 @@ router.post('/simulate', protect, async (req, res) => {
         yearlySavings: mlResult?.yearlySavings ?? Math.round(reduction * 365 * 10) / 10,
         treesEquivalent: mlResult?.treesEquivalent ?? Math.round((reduction * 365) / 21),
         impactScore: mlResult?.impactScore ?? Math.min(100, Math.round(reductionPercent * 1.5)),
-        simulationId: simulation._id,
+        simulationId: simulation.id,
       });
     }
 
-    // No trips to simulate against. Previously this fell back to a fabricated
-    // lifestyle baseline (electricity/water/food/shopping/waste), which
-    // inflated the baseline denominator and diluted every reductionPercent.
+    // No trips to simulate against. The API is transportation-only: it never
+    // fabricates a lifestyle baseline, so it cannot run without a logged trip.
     return res.status(400).json({
       message: 'Log at least one trip before running a simulation.',
     });
@@ -136,10 +155,9 @@ router.post('/simulate', protect, async (req, res) => {
 
 router.get('/history', protect, async (req, res) => {
   try {
-    const simulations = await Simulation.find({ user: req.user._id })
-      .sort({ createdAt: -1 })
-      .limit(20);
-    res.json(simulations);
+    const tenant = authTenant(req);
+    const simulations = await simulationRepository.listByOwner(tenant, { limit: 20 });
+    res.json(simulations.map(toApiSimulation));
   } catch (error) {
     console.error('Simulation history error:', error);
     res.status(500).json({ message: 'Failed to load simulation history' });

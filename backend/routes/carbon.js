@@ -1,64 +1,54 @@
 const express = require('express');
-const CarbonEntry = require('../models/CarbonEntry');
-const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { calculateEcoScore } = require('../utils/emissionFactors');
 const { calculateTrips } = require('../utils/tripEngine');
 const { getPredictions, getShapExplanation } = require('../utils/mlService');
+const { carbonRepository, gamificationRepository, tenancyContext } = require('../repositories');
+const { toApiEntry } = require('../repositories/carbonSerializer');
 
 const router = express.Router();
 
-async function autoAwardBadges(user, entry) {
-  const badges = user.gamification.badges || [];
+/**
+ * The tenant context for the authenticated request. Built exclusively from the
+ * verified Supabase profile (req.auth.profile) — never from request JSON/query,
+ * so user_id / organization_id / department_id cannot be client-controlled.
+ */
+function authTenant(req) {
+  const profile = req.auth?.profile;
+  if (!profile) {
+    const e = new Error('Authenticated profile not available');
+    e.status = 401;
+    throw e;
+  }
+  return tenancyContext.fromProfile(profile);
+}
+
+/**
+ * Compute badges earned from a gamification snapshot (pure, no storage).
+ * Gamification state now lives in `public.profiles.gamification` (PostgreSQL).
+ * @param {object} g - current gamification snapshot
+ * @param {object} ctx - { entryCount, entry, allEmissions }
+ * @returns {string[]} newly earned badge ids
+ */
+function earnedBadges(g, ctx) {
+  const badges = g.badges || [];
   const newBadges = [];
+  const has = (id) => badges.includes(id);
 
-  // Count total entries for this user
-  const entryCount = await CarbonEntry.countDocuments({ user: user._id });
+  if (ctx.entryCount === 1 && !has('first_entry')) newBadges.push('first_entry');
+  if (g.streak >= 7 && !has('week_streak')) newBadges.push('week_streak');
+  if (g.streak >= 30 && !has('month_streak')) newBadges.push('month_streak');
+  if (g.ecoScore >= 80 && !has('eco_hero')) newBadges.push('eco_hero');
 
-  // first_entry: first carbon log
-  if (entryCount === 1 && !badges.includes('first_entry')) {
-    newBadges.push('first_entry');
+  const avg = ctx.allEmissions.length >= 3
+    ? ctx.allEmissions.reduce((s, e) => s + e, 0) / ctx.allEmissions.length
+    : 0;
+  if (ctx.allEmissions.length >= 3 && ctx.entry.totalEmissions <= avg * 0.8 && !has('carbon_cut')) {
+    newBadges.push('carbon_cut');
   }
 
-  // week_streak: 7-day streak
-  if (user.gamification.streak >= 7 && !badges.includes('week_streak')) {
-    newBadges.push('week_streak');
-  }
-
-  // month_streak: 30-day streak
-  if (user.gamification.streak >= 30 && !badges.includes('month_streak')) {
-    newBadges.push('month_streak');
-  }
-
-  // eco_hero: eco score 80+
-  if (user.gamification.ecoScore >= 80 && !badges.includes('eco_hero')) {
-    newBadges.push('eco_hero');
-  }
-
-  // carbon_cut: entry 20%+ below user's historical average
-  const allEntries = await CarbonEntry.find({ user: user._id }).select('totalEmissions');
-  if (allEntries.length >= 3) {
-    const avg = allEntries.reduce((s, e) => s + e.totalEmissions, 0) / allEntries.length;
-    if (entry.totalEmissions <= avg * 0.8 && !badges.includes('carbon_cut')) {
-      newBadges.push('carbon_cut');
-    }
-  }
-
-  // green_commuter: zero transport emissions in this entry
-  const transportTotal = entry.breakdown?.transport || 0;
-  if (transportTotal === 0 && !badges.includes('green_commuter')) {
-    newBadges.push('green_commuter');
-  }
-
-  // eco_warrior: 500+ green points
-  if (user.gamification.greenPoints >= 500 && !badges.includes('eco_warrior')) {
-    newBadges.push('eco_warrior');
-  }
-
-  if (newBadges.length > 0) {
-    user.gamification.badges = [...badges, ...newBadges];
-    await user.save();
-  }
+  if ((ctx.entry.breakdown?.transport || 0) === 0 && !has('green_commuter')) newBadges.push('green_commuter');
+  if (g.greenPoints >= 500 && !has('eco_warrior')) newBadges.push('eco_warrior');
 
   return newBadges;
 }
@@ -90,8 +80,6 @@ function toTripSubdocs(tripDetails) {
 
 router.post('/', protect, async (req, res) => {
   // Transportation-only platform (spec §37): trips[] is the sole input.
-  // Legacy lifestyle fields remain on the schema for historical records but
-  // are never accepted from the client, so only whitelisted keys are persisted.
   if (!Array.isArray(req.body.trips) || req.body.trips.length === 0) {
     return res.status(400).json({
       message: 'At least one trip is required — EcoGuardian tracks transportation emissions only.',
@@ -107,50 +95,64 @@ router.post('/', protect, async (req, res) => {
   // the entry total.
   const entryTotal = tripsResult.transportPersonal;
 
-  const entry = await CarbonEntry.create({
-    user: req.user._id,
-    ...(req.body.date ? { date: req.body.date } : {}),
-    ...(req.body.notes ? { notes: req.body.notes } : {}),
+  // Write the entry to Supabase PostgreSQL (primary store). Tenancy derived
+  // from the authenticated profile; client-supplied user/org/dept are ignored.
+  const tenant = authTenant(req);
+  const entry = await carbonRepository.create(tenant, {
+    date: req.body.date,
+    notes: req.body.notes,
     trips: toTripSubdocs(tripsResult.tripDetails),
     transportPersonal: tripsResult.transportPersonal,
     transportHousehold: tripsResult.transportHousehold,
     modeBreakdown: tripsResult.modeBreakdown,
     totalEmissions: entryTotal,
-    breakdown: { transport: entryTotal }, // backward-compatible shape
   });
 
-  // Update gamification
-  const user = req.user;
-  const today = new Date().toDateString();
-  const lastActive = user.gamification.lastActiveDate?.toDateString();
-  if (lastActive !== today) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (lastActive === yesterday.toDateString()) {
-      user.gamification.streak += 1;
-    } else if (lastActive !== today) {
-      user.gamification.streak = 1;
+  // Update gamification on the PostgreSQL `profiles.gamification` column.
+  const serialized = toApiEntry(entry);
+  const entryCount = (await carbonRepository.countByUser(tenant)) || 0;
+  const allEmissions = (await carbonRepository.listAllByUser(tenant)).map((r) => Number(r.total_emissions) || 0);
+  let earned = [];
+  const gamification = await gamificationRepository.mutate(tenant, (g) => {
+    const today = new Date().toDateString();
+    const lastActive = g.lastActiveDate ? new Date(g.lastActiveDate).toDateString() : null;
+    let streak = g.streak || 0;
+    if (lastActive !== today) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (lastActive === yesterday.toDateString()) streak += 1;
+      else streak = 1;
     }
-    user.gamification.lastActiveDate = new Date();
-  }
-  user.gamification.ecoScore = calculateEcoScore(entryTotal, user.gamification.streak);
-  user.gamification.greenPoints += Math.max(0, Math.round(20 - entryTotal));
-  await user.save();
+    const ecoScore = calculateEcoScore(entryTotal, streak);
+    const greenPoints = Math.max(0, Math.round(20 - entryTotal));
+    const next = {
+      ...g,
+      streak,
+      ecoScore,
+      greenPoints: (g.greenPoints || 0) + greenPoints,
+      lastActiveDate: new Date().toISOString(),
+      badges: g.badges || [],
+    };
+    // Auto-award badges (pure computations against the post-entry snapshot).
+    earned = earnedBadges(next, { entryCount, entry: serialized, allEmissions });
+    if (earned.length) next.badges = [...next.badges, ...earned];
+    return next;
+  });
 
-  // Auto-award badges
-  const earnedBadges = await autoAwardBadges(user, entry);
-
-  res.status(201).json({ ...entry.toObject(), earnedBadges });
+  res.status(201).json({ ...serialized, gamification: gamification.gamification, earnedBadges: earned });
 });
 
 router.get('/', protect, async (req, res) => {
-  const { limit = 30, page = 1 } = req.query;
-  const entries = await CarbonEntry.find({ user: req.user._id })
-    .sort({ date: -1 })
-    .limit(Number(limit))
-    .skip((Number(page) - 1) * Number(limit));
-  const total = await CarbonEntry.countDocuments({ user: req.user._id });
-  res.json({ entries, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  const tenant = authTenant(req);
+  const limit = Math.max(1, Number(req.query.limit) || 30);
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const rows = await carbonRepository.listByUser(tenant, {
+    limit,
+    offset: (page - 1) * limit,
+  });
+  const total = await carbonRepository.countByUser(tenant);
+  const entries = rows.map((r) => toApiEntry(r));
+  res.json({ entries, total, page, pages: Math.ceil(total / limit) });
 });
 
 router.get('/dashboard', protect, async (req, res) => {
@@ -163,12 +165,20 @@ router.get('/dashboard', protect, async (req, res) => {
   const startOfMonth = new Date(now);
   startOfMonth.setDate(startOfMonth.getDate() - 30);
 
+  const tenant = authTenant(req);
+
   const [daily, weekly, monthly, allEntries] = await Promise.all([
-    CarbonEntry.find({ user: userId, date: { $gte: startOfDay } }),
-    CarbonEntry.find({ user: userId, date: { $gte: startOfWeek } }),
-    CarbonEntry.find({ user: userId, date: { $gte: startOfMonth } }),
-    CarbonEntry.find({ user: userId }).sort({ date: -1 }).limit(90),
+    carbonRepository.listByUser(tenant, { from: startOfDay.toISOString() }),
+    carbonRepository.listByUser(tenant, { from: startOfWeek.toISOString() }),
+    carbonRepository.listByUser(tenant, { from: startOfMonth.toISOString() }),
+    carbonRepository.listAllByUser(tenant, { limit: 90 }),
   ]);
+
+  // map to API shape so the aggregate helpers below keep their exact contract
+  const dApi = daily.map(toApiEntry);
+  const wApi = weekly.map(toApiEntry);
+  const mApi = monthly.map(toApiEntry);
+  const aApi = allEntries.map(toApiEntry);
 
   const sumEmissions = (entries) => entries.reduce((s, e) => s + e.totalEmissions, 0);
   const avgBreakdown = (entries) => {
@@ -184,19 +194,18 @@ router.get('/dashboard', protect, async (req, res) => {
     );
   };
 
-  const dailyTotal = sumEmissions(daily);
-  const weeklyTotal = sumEmissions(weekly);
-  const monthlyTotal = sumEmissions(monthly);
-  const allTimeTotal = sumEmissions(allEntries);
-  const categoryBreakdown = avgBreakdown(allEntries.slice(0, 30));
+  const dailyTotal = sumEmissions(dApi);
+  const weeklyTotal = sumEmissions(wApi);
+  const monthlyTotal = sumEmissions(mApi);
+  const allTimeTotal = sumEmissions(aApi);
+  const categoryBreakdown = avgBreakdown(aApi.slice(0, 30));
 
-  // Per-travel-mode totals (occupancy-allocated personal kg CO2). `breakdown`
-  // only ever holds a single `transport` key on v3 entries, so it cannot drive
-  // a mode-mix chart — modeBreakdown can.
+  // Per-travel-mode totals (occupancy-allocated personal kg CO2).
   const toModePairs = (mb) => {
     if (!mb) return [];
-    if (mb instanceof Map) return [...mb.entries()];
-    return Object.entries(typeof mb.toObject === 'function' ? mb.toObject() : mb);
+    if (typeof Map !== 'undefined' && mb instanceof Map) return [...mb.entries()];
+    if (typeof mb.toObject === 'function') return Object.entries(mb.toObject());
+    return Object.entries(mb);
   };
   const sumModes = (entries) => {
     const totals = {};
@@ -212,9 +221,9 @@ router.get('/dashboard', protect, async (req, res) => {
         .map(([k, v]) => [k, Math.round(v * 100) / 100])
     );
   };
-  const modeBreakdown = sumModes(allEntries.slice(0, 30));
+  const modeBreakdown = sumModes(aApi.slice(0, 30));
 
-  // ---- transportation-only aggregates (occupancy-allocated personal) ------
+  // transportation-only aggregates (occupancy-allocated personal)
   const sumPersonal = (entries) =>
     Math.round(entries.reduce((s, e) => {
       if (typeof e.transportPersonal === 'number') return s + e.transportPersonal;
@@ -222,27 +231,29 @@ router.get('/dashboard', protect, async (req, res) => {
     }, 0) * 100) / 100;
 
   const transport = {
-    dailyPersonal: sumPersonal(daily),
-    weeklyPersonal: sumPersonal(weekly),
-    monthlyPersonal: sumPersonal(monthly),
+    dailyPersonal: sumPersonal(dApi),
+    weeklyPersonal: sumPersonal(wApi),
+    monthlyPersonal: sumPersonal(mApi),
   };
 
-  const trend = allEntries.slice(0, 30).reverse().map((e) => ({
+  const trend = aApi.slice(0, 30).reverse().map((e) => ({
     date: e.date,
     total: e.totalEmissions,
     ...e.breakdown,
   }));
 
+  // ML predictions keep their existing scope id (the Mongo user id) so models
+  // and behavior are unchanged.
   const predictions = await getPredictions(
     userId.toString(),
-    allEntries.slice(0, 60),
+    aApi.slice(0, 60),
     'user',
     userId.toString()
   );
-  const latestBreakdown = allEntries[0]?.breakdown || categoryBreakdown;
+  const latestBreakdown = aApi[0]?.breakdown || categoryBreakdown;
   const shapExplanation = await getShapExplanation(
     latestBreakdown,
-    allEntries[0]?.totalEmissions || 0,
+    aApi[0]?.totalEmissions || 0,
     'user',
     userId.toString()
   );
@@ -258,19 +269,22 @@ router.get('/dashboard', protect, async (req, res) => {
     trend,
     predictions,
     shapExplanation,
-    entryCount: allEntries.length,
+    entryCount: aApi.length,
   });
 });
 
 router.get('/:id', protect, async (req, res) => {
-  const entry = await CarbonEntry.findOne({ _id: req.params.id, user: req.user._id });
+  const tenant = authTenant(req);
+  const entry = await carbonRepository.findById(tenant, req.params.id);
   if (!entry) return res.status(404).json({ message: 'Entry not found' });
-  res.json(entry);
+  res.json(toApiEntry(entry));
 });
 
 router.delete('/:id', protect, async (req, res) => {
-  const entry = await CarbonEntry.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+  const tenant = authTenant(req);
+  const entry = await carbonRepository.findById(tenant, req.params.id);
   if (!entry) return res.status(404).json({ message: 'Entry not found' });
+  await carbonRepository.remove(tenant, req.params.id);
   res.json({ message: 'Entry deleted' });
 });
 

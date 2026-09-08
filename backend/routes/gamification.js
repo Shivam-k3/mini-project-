@@ -1,7 +1,7 @@
 const express = require('express');
-const User = require('../models/User');
-const Challenge = require('../models/Challenge');
 const { protect } = require('../middleware/auth');
+const { challengeRepository, gamificationRepository, tenancyContext } = require('../repositories');
+const { toApiChallenge } = require('../repositories/challengeSerializer');
 
 const router = express.Router();
 
@@ -17,79 +17,96 @@ const BADGES = [
   { id: 'solar_pioneer', name: 'Solar Pioneer', description: 'Simulate solar panel installation', icon: '☀️' },
 ];
 
+/**
+ * Tenant context for the authenticated request. Built exclusively from the
+ * verified Supabase profile (req.auth.profile) — never from request JSON/query,
+ * so the actor/org/dept can never be client-controlled.
+ */
+function authTenant(req) {
+  const profile = req.auth?.profile;
+  if (!profile) {
+    const e = new Error('Authenticated profile not available');
+    e.status = 401;
+    throw e;
+  }
+  return tenancyContext.fromProfile(profile);
+}
+
 router.get('/stats', protect, async (req, res) => {
-  const user = await User.findById(req.user._id);
-  res.json({
-    ecoScore: user.gamification.ecoScore,
-    greenPoints: user.gamification.greenPoints,
-    streak: user.gamification.streak,
-    badges: user.gamification.badges,
-    allBadges: BADGES,
-  });
+  try {
+    const tenant = authTenant(req);
+    const { gamification } = await gamificationRepository.get(tenant);
+    res.json({
+      ecoScore: gamification.ecoScore ?? 0,
+      greenPoints: gamification.greenPoints ?? 0,
+      streak: gamification.streak ?? 0,
+      badges: gamification.badges || [],
+      allBadges: BADGES,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 router.get('/challenges', protect, async (req, res) => {
-  const challenges = await Challenge.find({
-    isActive: true,
-    $or: [
-      { collegeId: null }, // Global/platform-wide
-      { collegeId: req.user.collegeId, departmentId: null }, // College-wide
-      { collegeId: req.user.collegeId, departmentId: req.user.departmentId } // Department-specific
-    ]
-  });
-  const user = await User.findById(req.user._id);
-  const completed = user.gamification.completedChallenges.map(String);
-  const enriched = challenges.map((c) => ({
-    ...c.toObject(),
-    completed: completed.includes(c._id.toString()),
-  }));
-  res.json(enriched);
+  try {
+    const tenant = authTenant(req);
+
+    // Active challenges VISIBLE to the authenticated actor (platform / org /
+    // dept scoping is enforced by the repository, never the request body).
+    const challenges = await challengeRepository.listVisible(tenant, { activeOnly: true });
+
+    const { gamification } = await gamificationRepository.get(tenant);
+    const completed = Array.isArray(gamification.completedChallenges)
+      ? gamification.completedChallenges.map(String)
+      : [];
+
+    const enriched = challenges.map((c) => ({
+      ...toApiChallenge(c),
+      completed: completed.includes(String(c.id)),
+    }));
+    res.json(enriched);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 router.post('/challenges/:id/complete', protect, async (req, res) => {
-  const challenge = await Challenge.findById(req.params.id);
-  if (!challenge) return res.status(404).json({ message: 'Challenge not found' });
+  try {
+    const tenant = authTenant(req);
 
-  const user = await User.findById(req.user._id);
-  const completed = user.gamification.completedChallenges.map(String);
-  if (completed.includes(challenge._id.toString())) {
-    return res.status(400).json({ message: 'Challenge already completed' });
+    // Resolve the challenge within the actor's visibility. A challenge from
+    // another org/dept (or a fabricated id) resolves to null.
+    const challenge = await challengeRepository.findVisible(tenant, req.params.id);
+    if (!challenge) return res.status(404).json({ message: 'Challenge not found' });
+
+    const result = await gamificationRepository.completeChallenge(tenant, challenge);
+    if (result.status === 'already_completed') {
+      return res.status(400).json({ message: 'Challenge already completed' });
+    }
+
+    res.json({
+      message: 'Challenge completed!',
+      pointsEarned: result.pointsEarned,
+      badge: result.badge,
+      gamification: result.gamification,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  user.gamification.completedChallenges.push(challenge._id);
-  user.gamification.greenPoints += challenge.points;
-  if (challenge.badge && !user.gamification.badges.includes(challenge.badge)) {
-    user.gamification.badges.push(challenge.badge);
-  }
-  await user.save();
-
-  res.json({
-    message: 'Challenge completed!',
-    pointsEarned: challenge.points,
-    badge: challenge.badge,
-    gamification: user.gamification,
-  });
 });
 
 router.get('/leaderboard', protect, async (req, res) => {
-  // Leaderboards are scoped to the caller's own boundary: an organization member
-  // ranks against their college, a personal-mode user against the platform-wide
-  // personal pool. `collegeId: null` is an explicit filter value, not "no
-  // filter" — omitting it made every organization member visible to individuals.
-  const filter = req.user.collegeId
-    ? { role: { $in: ['student', 'individual'] }, collegeId: req.user.collegeId }
-    : { role: 'individual', collegeId: null };
-  const users = await User.find(filter)
-    .select('name gamification.ecoScore gamification.greenPoints gamification.streak')
-    .sort({ 'gamification.greenPoints': -1 })
-    .limit(20);
-  res.json(users.map((u, i) => ({
-    rank: i + 1,
-    name: u.name,
-    ecoScore: u.gamification.ecoScore,
-    greenPoints: u.gamification.greenPoints,
-    streak: u.gamification.streak,
-  })));
+  try {
+    const tenant = authTenant(req);
+    // Leaderboards are scoped to the caller's own boundary: an organization
+    // member ranks against their college, a personal-mode user against the
+    // platform-wide personal pool (enforced in the repository).
+    const leaderboard = await gamificationRepository.leaderboard(tenant, { limit: 20 });
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 module.exports = router;

@@ -7,7 +7,8 @@
  * contract (KNOWN_MODES, occupancy split flags, dataset version).
  *
  * No database required: catalog lookups short-circuit to the static dataset
- * when mongoose is not connected, so all expected values are deterministic.
+ * when the factor registry is unavailable, so all expected values are
+ * deterministic.
  *
  * Run: npm test  (from backend/)
  */

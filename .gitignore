@@ -16,3 +16,5 @@ ml-service/models/
 
 .agents/
 skills-lock.json
+
+supabase/.temp/

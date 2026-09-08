@@ -1,6 +1,7 @@
 const express = require('express');
-const CarbonEntry = require('../models/CarbonEntry');
 const { protect } = require('../middleware/auth');
+const { carbonRepository, tenancyContext } = require('../repositories');
+const { toApiEntry } = require('../repositories/carbonSerializer');
 const { getAIResponse } = require('../utils/aiService');
 
 const router = express.Router();
@@ -11,9 +12,9 @@ router.post('/chat', protect, async (req, res) => {
     return res.status(400).json({ message: 'Message is required' });
   }
 
-  const entries = await CarbonEntry.find({ user: req.user._id })
-    .sort({ date: -1 })
-    .limit(30);
+  const tenant = tenancyContext.fromProfile(req.auth.profile);
+  const rows = await carbonRepository.listAllByUser(tenant, { limit: 30 });
+  const entries = rows.map(toApiEntry);
 
   const latest = entries[0];
 

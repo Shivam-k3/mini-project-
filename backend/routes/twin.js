@@ -1,10 +1,27 @@
 const express = require('express');
-const MobilityTwin = require('../models/MobilityTwin');
 const { protect } = require('../middleware/auth');
 const { deriveTwin, getOrCreateTwin, buildReplacementOptions } = require('../utils/twinEngine');
 const { getDigitalTwinSimulation } = require('../utils/mlService');
+const { carbonRepository, mobilityTwinRepository, tenancyContext } = require('../repositories');
+const { toApiEntry } = require('../repositories/carbonSerializer');
+const { withScenarioId } = require('../repositories/twinSerializer');
 
 const router = express.Router();
+
+/**
+ * Tenant context for the authenticated request. Built exclusively from the
+ * verified Supabase profile (req.auth.profile) — never from request JSON/query,
+ * so user_id / organization_id / department_id cannot be client-controlled.
+ */
+function authTenant(req) {
+  const profile = req.auth?.profile;
+  if (!profile) {
+    const e = new Error('Authenticated profile not available');
+    e.status = 401;
+    throw e;
+  }
+  return tenancyContext.fromProfile(profile);
+}
 
 /**
  * @route  GET /api/twin
@@ -12,7 +29,8 @@ const router = express.Router();
  */
 router.get('/', protect, async (req, res) => {
   try {
-    const twin = await getOrCreateTwin(req.user._id);
+    const tenant = authTenant(req);
+    const twin = await getOrCreateTwin(tenant, req.user._id);
     res.json({ twin, replacements: await buildReplacementOptions(twin) });
   } catch (err) {
     console.error('Twin fetch error:', err.message);
@@ -26,7 +44,8 @@ router.get('/', protect, async (req, res) => {
  */
 router.post('/refresh', protect, async (req, res) => {
   try {
-    const twin = await deriveTwin(req.user._id);
+    const tenant = authTenant(req);
+    const twin = await deriveTwin(tenant, req.user._id);
     res.json({ twin, replacements: await buildReplacementOptions(twin) });
   } catch (err) {
     console.error('Twin refresh error:', err.message);
@@ -40,7 +59,8 @@ router.post('/refresh', protect, async (req, res) => {
  */
 router.get('/replacements', protect, async (req, res) => {
   try {
-    const twin = await getOrCreateTwin(req.user._id);
+    const tenant = authTenant(req);
+    const twin = await getOrCreateTwin(tenant, req.user._id);
     res.json({ replacements: await buildReplacementOptions(twin) });
   } catch (err) {
     console.error('Replacements error:', err.message);
@@ -61,11 +81,13 @@ router.post('/scenarios', protect, async (req, res) => {
       return res.status(400).json({ message: 'name and changes are required' });
     }
 
-    const twin = await getOrCreateTwin(req.user._id);
+    const tenant = authTenant(req);
+    const twin = await getOrCreateTwin(tenant, req.user._id);
 
-    // Baseline in the shape the ML service understands.
-    const latestEntries = await require('../models/CarbonEntry')
-      .find({ user: req.user._id }).sort({ date: -1 }).limit(7).lean();
+    // Latest entries now come from Supabase PostgreSQL (Phase 3B), mapped to the
+    // camelCase shape the ML /simulate baseline expects.
+    const latestRows = await carbonRepository.listByUser(tenant, { limit: 7 });
+    const latestEntries = latestRows.map(toApiEntry);
 
     const baseline = latestEntries.length && (latestEntries[0].trips?.length || latestEntries[0].transport)
       ? { ...latestEntries[0] }
@@ -86,10 +108,13 @@ router.post('/scenarios', protect, async (req, res) => {
       scenarioDailyKg: Math.round(sTotal * 100) / 100,
     };
 
-    twin.scenarios.push({ name: String(name).slice(0, 80), changes, result });
-    await twin.save();
+    // Save the scenario into the jsonb array. Each scenario keeps a unique `_id`
+    // so the frontend (keyed by s._id) and DELETE-by-scenarioId keep working.
+    const scenario = withScenarioId({ name: String(name).slice(0, 80), changes, result });
+    const scenarios = [...(twin.scenarios || []), scenario];
+    const saved = await mobilityTwinRepository.upsert(tenant, { scenarios });
 
-    res.status(201).json({ scenario: twin.scenarios[twin.scenarios.length - 1], simulation: sim });
+    res.status(201).json({ scenario, simulation: sim });
   } catch (err) {
     console.error('Scenario save error:', err.message);
     res.status(500).json({ message: 'Failed to save scenario' });
@@ -102,13 +127,14 @@ router.post('/scenarios', protect, async (req, res) => {
  */
 router.delete('/scenarios/:scenarioId', protect, async (req, res) => {
   try {
-    const twin = await MobilityTwin.findOneAndUpdate(
-      { user: req.user._id },
-      { $pull: { scenarios: { _id: req.params.scenarioId } } },
-      { new: true }
-    );
+    const tenant = authTenant(req);
+    const twin = await getOrCreateTwin(tenant, req.user._id);
     if (!twin) return res.status(404).json({ message: 'Twin not found' });
-    res.json({ scenarios: twin.scenarios });
+
+    const scenarios = (twin.scenarios || []).filter((s) => String(s._id) !== String(req.params.scenarioId));
+    await mobilityTwinRepository.upsert(tenant, { scenarios });
+
+    res.json({ scenarios });
   } catch (err) {
     console.error('Scenario delete error:', err.message);
     res.status(500).json({ message: 'Failed to delete scenario' });

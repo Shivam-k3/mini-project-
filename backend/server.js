@@ -19,8 +19,8 @@ const twinRoutes = require('./routes/twin');
 const factorRoutes = require('./routes/factors');
 
 connectDB().then(() => {
-  const seedHelper = require('./scripts/seedHelper');
-  seedHelper().catch((err) => console.error('Database seeding failed:', err));
+  // No database seeding at runtime. `npm run seed` (scripts/seed.js) is an
+  // explicit, separate step that populates Supabase PostgreSQL directly.
 });
 
 const app = express();

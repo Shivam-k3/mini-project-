@@ -1,8 +1,4 @@
-const User = require('../models/User');
-const Challenge = require('../models/Challenge');
-const College = require('../models/College');
-const Department = require('../models/Department');
-const EmissionFactor = require('../models/EmissionFactor');
+const { client } = require('../repositories/supabaseClient');
 const { FACTOR_DATASET } = require('../utils/factorResolver');
 
 /**
@@ -21,9 +17,10 @@ const challenges = [
 ];
 
 /**
- * Idempotent emission-factor seeding from config/emission-factors.json.
+ * Idempotent emission-factor seeding (Phase 3H: PostgreSQL).
  * - Upserts generic-mode and category-level rows (identified by empty manufacturer).
  * - NEVER deletes rows: super-admin-curated vehicle catalog entries survive.
+ * Unique key: (mode, manufacturer, model, variant, vehicle_category, fuel_type).
  */
 async function seedEmissionFactors() {
   if (!FACTOR_DATASET) {
@@ -31,221 +28,115 @@ async function seedEmissionFactors() {
     return;
   }
   const version = FACTOR_DATASET.version;
-  const ops = [];
+  const rows = [];
 
   // Generic mode-level factors
   for (const [mode, row] of Object.entries(FACTOR_DATASET.modes)) {
-    ops.push({
-      updateOne: {
-        filter: { mode, manufacturer: '', vehicle_category: '' },
-        update: {
-          $set: {
-            co2_kg_per_km: row.co2_kg_per_km,
-            source: row.source || '',
-            source_url: row.source_url || '',
-            source_year: row.source_year || null,
-            region: 'IN',
-            confidence_level: row.confidence_level || 'low',
-            active: true,
-            datasetVersion: version,
-          },
-        },
-        upsert: true,
-      },
+    rows.push({
+      mode,
+      manufacturer: '',
+      model: '',
+      variant: '',
+      vehicle_category: '',
+      fuel_type: '',
+      co2_kg_per_km: row.co2_kg_per_km,
+      kwh_per_km: null,
+      source: row.source || '',
+      source_url: row.source_url || '',
+      source_year: row.source_year || null,
+      region: 'IN',
+      confidence_level: row.confidence_level || 'low',
+      active: true,
+      dataset_version: version,
     });
   }
 
   // Category-level factors
   for (const row of FACTOR_DATASET.vehicle_categories) {
-    ops.push({
-      updateOne: {
-        filter: { mode: row.mode, manufacturer: '', vehicle_category: row.vehicle_category, fuel_type: row.fuel_type },
-        update: {
-          $set: {
-            co2_kg_per_km: row.co2_kg_per_km || 0,
-            kwh_per_km: row.kwh_per_km || null,
-            source: 'Indicative category default (see dataset honesty policy)',
-            source_url: '',
-            source_year: null,
-            region: 'IN',
-            confidence_level: row.confidence_level || 'low',
-            active: true,
-            datasetVersion: version,
-          },
-        },
-        upsert: true,
-      },
+    rows.push({
+      mode: row.mode,
+      manufacturer: '',
+      model: '',
+      variant: '',
+      vehicle_category: row.vehicle_category,
+      fuel_type: row.fuel_type,
+      co2_kg_per_km: row.co2_kg_per_km || 0,
+      kwh_per_km: row.kwh_per_km || null,
+      source: 'Indicative category default (see dataset honesty policy)',
+      source_url: '',
+      source_year: null,
+      region: 'IN',
+      confidence_level: row.confidence_level || 'low',
+      active: true,
+      dataset_version: version,
     });
   }
 
-  // Grid electricity factor (unit: kg CO2 per kWh, stored in co2_kg_per_km column)
+  // Grid electricity factor (kg CO2 per kWh, stored in co2_kg_per_km column)
   const grid = FACTOR_DATASET.grid_electricity;
-  ops.push({
-    updateOne: {
-      filter: { mode: 'grid_electricity' },
-      update: {
-        $set: {
-          co2_kg_per_km: grid.factor_kg_per_kwh,
-          source: grid.source,
-          source_url: grid.source_url,
-          source_year: grid.source_year,
-          region: grid.region,
-          confidence_level: grid.confidence_level,
-          active: true,
-          datasetVersion: version,
-        },
-      },
-      upsert: true,
-    },
+  rows.push({
+    mode: 'grid_electricity',
+    manufacturer: '',
+    model: '',
+    variant: '',
+    vehicle_category: '',
+    fuel_type: '',
+    co2_kg_per_km: grid.factor_kg_per_kwh,
+    kwh_per_km: null,
+    source: grid.source,
+    source_url: grid.source_url,
+    source_year: grid.source_year,
+    region: grid.region,
+    confidence_level: grid.confidence_level,
+    active: true,
+    dataset_version: version,
   });
 
-  await EmissionFactor.bulkWrite(ops);
-  console.log(`Emission factors seeded/upserted (${ops.length} rows, dataset v${version})`);
+  const { error } = await client()
+    .from('emission_factors')
+    .upsert(rows, { onConflict: 'mode,manufacturer,model,variant,vehicle_category,fuel_type' });
+  if (error) throw new Error(`seedEmissionFactors: ${error.message}`);
+  console.log(`Emission factors seeded/upserted (${rows.length} rows, dataset v${version})`);
 }
 
 /**
- * Platform-wide challenge catalog (collegeId: null, departmentId: null).
- *
- * Challenges belong to the platform, not to a tenant: a personal-mode user has
- * no college to scope against, and an organization member sees these alongside
- * whatever their college adds. Idempotent (upsert by title) and deliberately
- * outside the destructive demo reset below, so the catalog survives a re-seed.
+ * Platform-wide challenge catalog (organization_id NULL, department_id NULL).
+ * Challenges belong to the platform, not to a tenant. Idempotent (upsert by
+ * title) and deliberately never deleted, so the catalog survives a re-seed.
  */
 async function seedPlatformChallenges() {
-  const ops = challenges.map((ch) => ({
-    updateOne: {
-      filter: { title: ch.title, collegeId: null, departmentId: null },
-      // isActive is left alone: the schema default covers inserts, and an admin
-      // who deactivated a challenge should not have it silently switched back on.
-      update: { $set: { ...ch, collegeId: null, departmentId: null } },
-      upsert: true,
-    },
+  const rows = challenges.map((ch) => ({
+    title: ch.title,
+    description: ch.description,
+    category: ch.category,
+    points: ch.points,
+    target_reduction: ch.targetReduction || 10,
+    duration_days: ch.duration || 7,
+    badge: ch.badge || '',
+    is_active: true,
+    week_number: ch.weekNumber || null,
+    organization_id: null,
+    department_id: null,
   }));
-  await Challenge.bulkWrite(ops);
-  console.log(`${ops.length} platform-wide transport challenges seeded/upserted`);
+  const { error } = await client()
+    .from('challenges')
+    .upsert(rows, { onConflict: 'id' });
+  if (error) throw new Error(`seedPlatformChallenges: ${error.message}`);
+  console.log(`${rows.length} platform-wide transport challenges seeded/upserted`);
 }
 
+/**
+ * Seed the PostgreSQL datastore (idempotent, non-destructive):
+ *   * emission factors (curated catalog + generic tiers)
+ *   * platform-wide challenge catalog
+ *
+ * Demo identities (Supabase Auth + profiles) are NOT created here — use:
+ *   node scripts/provisionSupabaseAuth.js
+ */
 async function seedHelper() {
   await seedEmissionFactors();
   await seedPlatformChallenges();
-
-  const existingUsers = await User.countDocuments();
-  const forceReseed = process.env.FORCE_RESEED === 'true';
-
-  if (existingUsers > 0 && !forceReseed) {
-    console.log(`Database already has ${existingUsers} users — skipping destructive demo seed (set FORCE_RESEED=true to override).`);
-    return;
-  }
-
-  console.log('Resetting and seeding database for multi-tenancy & RBAC...');
-
-  // 1. Clear existing collections to ensure fresh schema compatibility.
-  //    Only tenant-owned challenges are dropped — the platform catalog above is
-  //    shared by both user modes and is not demo data.
-  await User.deleteMany({});
-  await College.deleteMany({});
-  await Department.deleteMany({});
-  await Challenge.deleteMany({ collegeId: { $ne: null } });
-
-  console.log('Database cleared.');
-
-  // 2. Seed Super Admin
-  await User.create({
-    userId: 'SUPER001',
-    name: 'Super Admin',
-    email: 'super@ecoguardian.ai',
-    password: 'admin123', // Will be hashed via pre-save hook
-    role: 'super_admin',
-    firstLogin: false,
-    gamification: { ecoScore: 100, greenPoints: 1000, streak: 30, badges: ['eco_hero'] },
-  });
-  console.log('Super Admin seeded: super@ecoguardian.ai / admin123');
-
-  // 3. Seed College
-  const college = await College.create({
-    name: 'Metro Institute of Technology',
-    code: 'MIT',
-    address: '100 University Ave, Metro City',
-    license: { plan: 'Enterprise', expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), status: 'active' },
-    status: 'active'
-  });
-  console.log('College seeded: Metro Institute of Technology (MIT)');
-
-  // 4. Seed Departments
-  const cseDept = await Department.create({
-    collegeId: college._id,
-    name: 'Computer Science & Engineering',
-    code: 'CSE'
-  });
-  await Department.create({
-    collegeId: college._id,
-    name: 'Electronics & Communication Engineering',
-    code: 'ECE'
-  });
-  console.log('Departments seeded: CSE, ECE');
-
-  // 5. Seed College Admin
-  await User.create({
-    userId: 'ADMIN001',
-    name: 'MIT Campus Admin',
-    email: 'admin@ecoguardian.ai',
-    password: 'admin123',
-    role: 'college_admin',
-    collegeId: college._id,
-    firstLogin: false,
-    gamification: { ecoScore: 80, greenPoints: 500, streak: 12, badges: [] },
-  });
-  console.log('College Admin seeded: admin@ecoguardian.ai / admin123');
-
-  // 6. Seed Faculty
-  await User.create({
-    userId: 'FAC001',
-    name: 'Dr. Sarah Smith',
-    email: 'sarah@mit.edu',
-    password: 'Temp@123',
-    role: 'faculty',
-    collegeId: college._id,
-    departmentId: cseDept._id,
-    firstLogin: true,
-  });
-  console.log('Faculty seeded: sarah@mit.edu / Temp@123 (firstLogin: true)');
-
-  // 7. Seed Student (CSE25001)
-  await User.create({
-    userId: 'CSE25001',
-    name: 'Jane Doe',
-    email: 'demo@ecoguardian.ai',
-    password: 'demo123',
-    role: 'student',
-    collegeId: college._id,
-    departmentId: cseDept._id,
-    semester: '3',
-    section: 'A',
-    firstLogin: false,
-    gamification: { ecoScore: 65, greenPoints: 250, streak: 5, badges: ['first_entry'] },
-  });
-  console.log('Demo Student seeded: demo@ecoguardian.ai / demo123 (Jane Doe)');
-
-  // 8. Seed college- and department-scoped demo challenges. The platform catalog
-  //    is already visible to every user in both modes; these exercise the
-  //    organization scoping path on top of it.
-  await Challenge.insertMany([
-    {
-      title: 'MIT Campus Cycle Week',
-      description: 'Cycle to campus every day this week',
-      category: 'transport', points: 50, badge: 'green_commuter', weekNumber: 1,
-      collegeId: college._id, departmentId: null,
-    },
-    {
-      title: 'CSE Shuttle Swap',
-      description: 'Swap solo car commutes for the CSE block shuttle',
-      category: 'transport', points: 40, badge: 'green_commuter', weekNumber: 2,
-      collegeId: college._id, departmentId: cseDept._id,
-    },
-  ]);
-  console.log('2 organization-scoped demo challenges seeded (1 college-wide, 1 CSE-only)');
-
-  console.log('Seeding verification complete.');
+  console.log('Seeding complete. Demo identities: run `node scripts/provisionSupabaseAuth.js`.');
 }
 
 module.exports = seedHelper;
