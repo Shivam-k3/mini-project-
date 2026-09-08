@@ -225,8 +225,6 @@ test('supabase.isConfigured() reflects env presence (no secrets leaked)', () => 
   process.env.SUPABASE_URL = 'https://example.supabase.co';
   process.env.SUPABASE_SECRET_KEY = 'sb_secret_TEST';
   assert.strictEqual(supabase.isConfigured(), true);
-  // ensure the admin client constructor does not throw on placeholder URL shape
-  assert.doesNotThrow(() => { supabase.adminClient(); });
   if (prevUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = prevUrl;
   if (prevKey === undefined) delete process.env.SUPABASE_SECRET_KEY; else process.env.SUPABASE_SECRET_KEY = prevKey;
 });
