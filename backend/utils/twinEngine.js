@@ -12,8 +12,9 @@
  * not generic averages.
  */
 
-const CarbonEntry = require('../models/CarbonEntry');
-const MobilityTwin = require('../models/MobilityTwin');
+const { carbonRepository, mobilityTwinRepository } = require('../repositories');
+const { toApiEntry } = require('../repositories/carbonSerializer');
+const { toApiTwin } = require('../repositories/twinSerializer');
 const { calculateTrips } = require('./tripEngine');
 const { resolveTripFactor, describeLevel } = require('./factorResolver');
 const { getPredictions } = require('./mlService');
@@ -276,29 +277,32 @@ async function buildReplacementOptions(twin) {
 // ---------------------------------------------------------------------------
 // Main derivation
 // ---------------------------------------------------------------------------
-async function deriveTwin(userId) {
+async function deriveTwin(tenant, mongoUserId) {
   const since = new Date();
   since.setDate(since.getDate() - WINDOW_DAYS);
 
-  const entries = await CarbonEntry.find({
-    user: userId,
-    $or: [{ date: { $gte: since } }, { date: { $exists: false } }],
-  })
-    .sort({ date: -1 })
-    .limit(WINDOW_DAYS)
-    .lean();
+  // Carbon entries now live in Supabase PostgreSQL (Phase 3B). Fetch them from
+  // the carbon repository, then map each row to the camelCase form the baseline
+  // helpers below were written against. This preserves the derivation algorithm
+  // exactly — only the data source changed (the user's entries now live in PG).
+  const rows = await carbonRepository.listByUser(tenant, {
+    from: since.toISOString(),
+    limit: WINDOW_DAYS,
+  });
+  const entries = rows.map(toApiEntry);
 
   const baseline = await _deriveBaseline(entries);
   const vehicleProfile = await _deriveVehicleProfile(entries);
 
-  // Sync ML metadata (non-fatal if ML service is down)
-  let modelMetadata = { scope: 'user', scopeId: String(userId), modelVersion: '3.0.0' };
+  // Sync ML metadata (non-fatal if ML service is down). Keep the Mongo user id
+  // as the ML scope id so existing model linkage is unchanged.
+  let modelMetadata = { scope: 'user', scopeId: String(mongoUserId), modelVersion: '3.0.0' };
   try {
-    const history = entries.map((e) => ({ ...e, _id: String(e._id), user: String(e.user) }));
-    const pred = await getPredictions(String(userId), history, 'user', String(userId));
+    const history = entries.map((e) => ({ ...e, _id: String(e._id), user: String(mongoUserId) }));
+    const pred = await getPredictions(String(mongoUserId), history, 'user', String(mongoUserId));
     modelMetadata = {
       scope: 'user',
-      scopeId: String(userId),
+      scopeId: String(mongoUserId),
       modelVersion: pred.modelVersion || '3.0.0',
       sampleCount: pred.nSamples || entries.length,
       predictionMethod: pred.method || null,
@@ -308,18 +312,23 @@ async function deriveTwin(userId) {
     modelMetadata.syncedAt = new Date();
   }
 
-  const twin = await MobilityTwin.findOneAndUpdate(
-    { user: userId },
-    { $set: { baseline, vehicleProfile, modelMetadata, derivedAt: new Date() } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
+  // Persist via the Supabase repository. The upsert is keyed on user_id
+  // (UNIQUE) so re-derivation replaces baseline/vehicle/model metadata while
+  // preserving the user's saved scenarios.
+  const saved = await mobilityTwinRepository.upsert(tenant, {
+    baseline,
+    vehicleProfile,
+    modelMetadata,
+    derivedAt: new Date(),
+  });
 
-  return twin;
+  return toApiTwin(saved);
 }
 
-async function getOrCreateTwin(userId) {
-  let twin = await MobilityTwin.findOne({ user: userId });
-  if (!twin) twin = await deriveTwin(userId);
+async function getOrCreateTwin(tenant, mongoUserId) {
+  let twin = await mobilityTwinRepository.findByOwner(tenant);
+  if (!twin) twin = await deriveTwin(tenant, mongoUserId);
+  else twin = toApiTwin(twin);
   return twin;
 }
 

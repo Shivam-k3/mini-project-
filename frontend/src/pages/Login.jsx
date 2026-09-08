@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { FieldError } from '../components/FormFeedback';
 import toast from 'react-hot-toast';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 const sandboxAccounts = [
   { label: 'Super admin', id: 'super@ecoguardian.ai', pass: 'admin123' },
@@ -77,6 +78,22 @@ export default function Login() {
 
   const quickFill = (id, pass) => setForm({ emailOrUserId: id, password: pass });
 
+  const handleGoogleSignIn = async () => {
+    if (!isSupabaseConfigured()) {
+      toast.error('Google sign-in is not configured');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) toast.error(error.message || 'Google sign-in failed');
+    } catch (err) {
+      toast.error(err.message || 'Google sign-in failed');
+    }
+  };
+
   return (
     <main className="auth-shell">
       <section className="auth-brand-panel" aria-label="EcoGuardian introduction">
@@ -113,7 +130,7 @@ export default function Login() {
             <p>Enter your credentials to access your mobility dashboard.</p>
           </header>
 
-          <button type="button" className="auth-google-button" aria-label="Google sign-in is not configured">
+          <button type="button" className="auth-google-button" aria-label="Continue with Google" onClick={handleGoogleSignIn}>
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -146,7 +163,13 @@ export default function Login() {
             </label>
 
             <label>
-              <span className="auth-password-label">Password <small>Protected account</small></span>
+              <span className="auth-password-label">
+                Password
+                <span className="auth-password-actions">
+                  <small>Protected account</small>
+                  <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link>
+                </span>
+              </span>
               <div className="auth-input-wrap">
                 <FiLock aria-hidden="true" />
                 <input

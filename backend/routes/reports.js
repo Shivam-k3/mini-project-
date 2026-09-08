@@ -1,10 +1,27 @@
 const express = require('express');
-const CarbonEntry = require('../models/CarbonEntry');
 const { protect } = require('../middleware/auth');
+const { carbonRepository, tenancyContext } = require('../repositories');
+const { toApiEntry } = require('../repositories/carbonSerializer');
 const { getAIResponse } = require('../utils/aiService');
 const { generateCarbonReport } = require('../utils/pdfGenerator');
 
 const router = express.Router();
+
+/**
+ * Tenant context for the authenticated request. Built exclusively from the
+ * verified Supabase profile (req.auth.profile) — never from request JSON/query,
+ * so the report owner/scope can never be client-controlled. The reports route
+ * is PERSONAL-only: it aggregates the authenticated user's own entries.
+ */
+function authTenant(req) {
+  const profile = req.auth?.profile;
+  if (!profile) {
+    const e = new Error('Authenticated profile not available');
+    e.status = 401;
+    throw e;
+  }
+  return tenancyContext.fromProfile(profile);
+}
 
 // Transportation-only personal emissions (occupancy-allocated)
 function personalOf(entry) {
@@ -13,9 +30,15 @@ function personalOf(entry) {
 }
 
 router.get('/pdf', protect, async (req, res) => {
-  const entries = await CarbonEntry.find({ user: req.user._id })
-    .sort({ date: -1 })
-    .limit(30);
+  const tenant = authTenant(req);
+
+  // Carbon entries now come from Supabase PostgreSQL (Phase 3B) via the carbon
+  // repository + serializer. The repository scopes to the authenticated user's
+  // own profile and returns the NEWEST 30 by date (matching the previous Mongo
+  // `.sort({ date: -1 }).limit(30)`). The serializer maps PG rows onto the same
+  // document shape this aggregation reads (transportPersonal, trips, modeBreakdown).
+  const rows = await carbonRepository.listByUser(tenant, { limit: 30 });
+  const entries = rows.map(toApiEntry);
 
   const weeklyTotal = entries.slice(0, 7).reduce((s, e) => s + personalOf(e), 0);
   const monthlyTotal = entries.slice(0, 30).reduce((s, e) => s + personalOf(e), 0);

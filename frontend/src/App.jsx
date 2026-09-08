@@ -7,6 +7,8 @@ import Layout from './components/Layout';
 import PageTransition from './components/PageTransition';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
 import Calculator from './pages/Calculator';
@@ -68,6 +70,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/legal/privacy" element={<Legal />} />
           <Route path="/legal/terms" element={<Legal />} />
           <Route path="/legal/security" element={<Legal />} />

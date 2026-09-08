@@ -1,12 +1,20 @@
 import axios from 'axios';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+api.interceptors.request.use(async (config) => {
+  // Prefer the live Supabase session access token; fall back to a stored token
+  // for legacy/rollback builds that predate Supabase.
+  let token = null;
+  if (isSupabaseConfigured()) {
+    const { data } = await supabase.auth.getSession();
+    token = data.session?.access_token || null;
+  }
+  if (!token) token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -17,6 +25,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      if (isSupabaseConfigured()) {
+        supabase.auth.signOut().catch(() => {});
+      }
       window.location.href = '/login';
     }
     return Promise.reject(error);

@@ -1,146 +1,164 @@
 const express = require('express');
 const { protect } = require('../middleware/auth');
-const User = require('../models/User');
-const Challenge = require('../models/Challenge');
-const CarbonEntry = require('../models/CarbonEntry');
-const Department = require('../models/Department');
-const { getPredictions, trainEntityModel, predictEntityModel } = require('../utils/mlService');
+const { tenancyContext, adminProfileRepository, departmentRepository, challengeRepository,
+  carbonRepository } = require('../repositories');
+const { toApiChallenge } = require('../repositories/challengeSerializer');
+const { toApiEntry } = require('../repositories/carbonSerializer');
+const { trainEntityModel, predictEntityModel } = require('../utils/mlService');
 
 const router = express.Router();
 
+/**
+ * Tenant + role for the authenticated request. Built from the VERIFIED Supabase
+ * profile (req.auth.profile) — the canonical RBAC/tenancy source. Role /
+ * org / department are never taken from req.body / req.query / URL params.
+ */
+function actor(req) {
+  if (req.auth?.profile) {
+    return { tenant: tenancyContext.fromProfile(req.auth.profile) };
+  }
+  const e = new Error('Authenticated profile not available');
+  e.status = 401;
+  throw e;
+}
+
 const facultyOnly = (req, res, next) => {
-  if (req.user?.role !== 'faculty') {
-    return res.status(403).json({ message: 'Faculty access required' });
+  try {
+    const { tenant } = actor(req);
+    const role = tenant.role;
+    const orgId = tenant.organizationId;
+    if (role !== 'faculty') {
+      return res.status(403).json({ message: 'Faculty access required' });
+    }
+    // Faculty is an organization role by definition. Without an org the scopes
+    // below collapse to `{ organizationId: null }` — the tenancy of personal
+    // mode — so refuse rather than leak across the boundary. (A null department
+    // IS legitimate here; the per-route guards answer 400 for it.)
+    if (!orgId) {
+      return res.status(403).json({ message: 'Account is not attached to an organization' });
+    }
+    req.actor = { tenant, orgId };
+    return next();
+  } catch (error) {
+    return res.status(error.status || 403).json({ message: error.message });
   }
-  // Faculty is an organization role by definition. Without a college the scopes
-  // below would collapse to `{ collegeId: null }` — the tenancy of personal-mode
-  // users. (A null departmentId *is* legitimate here; the per-route guards
-  // answer 400 for that.)
-  if (!req.user.collegeId) {
-    return res.status(403).json({ message: 'Account is not attached to an organization' });
-  }
-  next();
 };
 
 router.use(protect, facultyOnly);
 
-// 1. Department Analytics
+function tenantOf(req) {
+  return req.actor.tenant;
+}
+
+// 1. Department Analytics -----------------------------------------------------
 router.get('/analytics/department', async (req, res) => {
   try {
-    if (!req.user.departmentId) {
+    const tenant = tenantOf(req);
+    if (!tenant.departmentId) {
       return res.status(400).json({ message: 'Faculty not assigned to any department.' });
     }
 
-    const dept = await Department.findById(req.user.departmentId);
-    const students = await User.find({ departmentId: req.user.departmentId, role: 'student' });
-    const studentIds = students.map(s => s._id);
+    const dept = await departmentRepository.findById(tenant.departmentId);
+    const students = await adminProfileRepository.listStudentsByDept(tenant);
+    const studentIds = students.map((s) => s.id);
 
-    // Total emissions in department
-    const emissionsResult = await CarbonEntry.aggregate([
-      { $match: { user: { $in: studentIds } } },
-      { $group: { _id: null, total: { $sum: '$totalEmissions' } } }
-    ]);
-    const totalEmissions = emissionsResult[0]?.total || 0;
+    const rows = studentIds.length ? await carbonRepository.listByUserIds(tenant, studentIds) : [];
+    const totalEmissions = rows.reduce((s, e) => s + (Number(e.total_emissions) || 0), 0);
 
-    // Average Eco Score in department
+    const readEco = (p) => Number(p.gamification?.ecoScore) || 50;
     const avgEcoScore = students.length > 0
-      ? Math.round(students.reduce((acc, s) => acc + (s.gamification?.ecoScore || 50), 0) / students.length)
+      ? Math.round(students.reduce((acc, s) => acc + readEco(s), 0) / students.length)
       : 50;
 
-    // Monthly mode breakdown in department.
-    // Previously summed breakdown.electricity/water/food/shopping/waste, which
-    // are structurally 0 on transportation-only entries — five dead slices.
-    // modeBreakdown holds the occupancy-allocated kg CO2 per travel mode.
-    const modeRows = await CarbonEntry.aggregate([
-      { $match: { user: { $in: studentIds } } },
-      { $project: { modes: { $objectToArray: { $ifNull: ['$modeBreakdown', {}] } } } },
-      { $unwind: '$modes' },
-      { $group: { _id: '$modes.k', kg: { $sum: '$modes.v' } } },
-      { $sort: { kg: -1 } },
-    ]);
-
-    const categoryTotals = Object.fromEntries(
-      modeRows
-        .filter((r) => r._id && r.kg > 0)
-        .map((r) => [r._id, Math.round(r.kg * 100) / 100])
-    );
+    // Monthly mode breakdown: sum occupancy-allocated per-mode kg (mirrors the
+    // Mongo objectToArray/unwind/group over `modeBreakdown`).
+    const categoryTotals = {};
+    rows.forEach((e) => {
+      const mb = e.mode_breakdown || {};
+      Object.entries(mb).forEach(([k, v]) => {
+        const n = Number(v);
+        if (n > 0) categoryTotals[k] = (categoryTotals[k] || 0) + n;
+      });
+    });
+    Object.keys(categoryTotals).forEach((k) => { categoryTotals[k] = Math.round(categoryTotals[k] * 100) / 100; });
 
     res.json({
       departmentName: dept?.name || 'Assigned Department',
       studentCount: students.length,
       totalEmissions,
       avgEcoScore,
-      categoryTotals
+      categoryTotals,
     });
-
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.status || 500).json({ message: error.message });
   }
 });
 
-// 2. Student Participation Monitor
+// 2. Student Participation Monitor -------------------------------------------
 router.get('/students/participation', async (req, res) => {
   try {
-    if (!req.user.departmentId) {
+    const tenant = tenantOf(req);
+    if (!tenant.departmentId) {
       return res.status(400).json({ message: 'Faculty not assigned to any department.' });
     }
 
-    const students = await User.find({ departmentId: req.user.departmentId, role: 'student' })
-      .select('name userId gamification email status')
-      .sort({ name: 1 });
+    const students = await adminProfileRepository.listStudentsByDept(tenant);
+    const studentIds = students.map((s) => s.id);
 
-    const results = await Promise.all(students.map(async (s) => {
-      // Find latest logged entry date
-      const latestEntry = await CarbonEntry.findOne({ user: s._id }).sort({ date: -1 });
-      const lastLogged = latestEntry ? latestEntry.date : null;
-      
-      // Logged this week? (within 7 days)
-      const loggedThisWeek = lastLogged 
-        ? (Date.now() - new Date(lastLogged).getTime()) < 7 * 24 * 60 * 60 * 1000
-        : false;
+    // Newest-first rows for these students (single fetch); first occurrence per
+    // student is their latest entry date.
+    const rows = studentIds.length ? await carbonRepository.listByUserIds(tenant, studentIds) : [];
+    const latestByStudent = new Map();
+    rows.forEach((e) => {
+      if (!latestByStudent.has(e.user_id)) latestByStudent.set(e.user_id, e.date);
+    });
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
 
+    const results = students.map((s) => {
+      const lastLogged = latestByStudent.get(s.id) || null;
+      const loggedThisWeek = lastLogged ? (Date.now() - new Date(lastLogged).getTime()) < weekMs : false;
       return {
-        _id: s._id,
+        _id: s.id,
         name: s.name,
-        userId: s.userId,
+        userId: s.user_id,
         email: s.email,
         status: s.status,
-        ecoScore: s.gamification?.ecoScore || 0,
-        greenPoints: s.gamification?.greenPoints || 0,
-        streak: s.gamification?.streak || 0,
+        ecoScore: Number(s.gamification?.ecoScore) || 0,
+        greenPoints: Number(s.gamification?.greenPoints) || 0,
+        streak: Number(s.gamification?.streak) || 0,
         lastLogged,
-        loggedThisWeek
+        loggedThisWeek,
       };
-    }));
+    })
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
     res.json(results);
-
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.status || 500).json({ message: error.message });
   }
 });
 
-// 3. Department Scoped Challenges
+// 3. Department Scoped Challenges ----------------------------------------------
 router.get('/challenges', async (req, res) => {
   try {
-    const challenges = await Challenge.find({ 
-      collegeId: req.user.collegeId,
-      departmentId: req.user.departmentId
-    }).sort({ createdAt: -1 });
-    res.json(challenges);
+    const tenant = tenantOf(req);
+    if (!tenant.departmentId) return res.json([]);
+    const all = await challengeRepository.listAll({ organizationId: tenant.organizationId });
+    const dept = all.filter((c) => c.organization_id === tenant.organizationId && c.department_id === tenant.departmentId);
+    res.json(dept.map(toApiChallenge));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.status || 500).json({ message: error.message });
   }
 });
 
 router.post('/challenges', async (req, res) => {
   const { title, description, category, points, targetReduction, duration, badge } = req.body;
   try {
-    if (!req.user.departmentId) {
+    const tenant = tenantOf(req);
+    if (!tenant.departmentId) {
       return res.status(400).json({ message: 'Faculty not assigned to any department.' });
     }
-
-    const newCh = await Challenge.create({
+    const newCh = await challengeRepository.create(tenant, {
       title,
       description,
       category: category || 'general',
@@ -148,84 +166,47 @@ router.post('/challenges', async (req, res) => {
       targetReduction: targetReduction || 10,
       duration: duration || 7,
       badge: badge || '',
-      collegeId: req.user.collegeId,
-      departmentId: req.user.departmentId
+      departmentId: tenant.departmentId,
     });
-    res.status(201).json(newCh);
+    res.status(201).json(toApiChallenge(newCh));
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(error.status || 400).json({ message: error.message });
   }
 });
 
-// 4. Department-level ML Predictions
-// Aggregates all student carbon entries in the faculty's department, trains a
-// department model, and returns entity-level forecasts.
-// Model is cached as: models/carbon_model_department_<departmentId>.pkl
+// 4. Department-level ML Predictions -------------------------------------------
 router.get('/analytics/department/predictions', async (req, res) => {
   try {
-    if (!req.user.departmentId) {
+    const tenant = tenantOf(req);
+    if (!tenant.departmentId) {
       return res.status(400).json({ message: 'Faculty not assigned to any department.' });
     }
+    const entityId = tenant.departmentId;
 
-    // Step 1: find all students in this department
-    const students = await User.find({ departmentId: req.user.departmentId, role: 'student' });
-    const studentIds = students.map(s => s._id);
-
+    const students = await adminProfileRepository.listStudentsByDept(tenant);
+    const studentIds = students.map((s) => s.id);
     if (studentIds.length === 0) {
-      return res.json({
-        predictions: null,
-        message: 'No students in this department yet.',
-      });
+      return res.json({ predictions: null, message: 'No students in this department yet.' });
     }
 
-    // Step 2: fetch their carbon entries (recent 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const entries = await CarbonEntry.find({
-      user: { $in: studentIds },
-      date: { $gte: thirtyDaysAgo },
-    })
-      .sort({ date: -1 })
-      .limit(200);
+    const rows = await carbonRepository.listByUserIds(tenant, studentIds, { from: thirtyDaysAgo.toISOString() });
+    const entries = rows.map(toApiEntry).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 200);
 
     if (entries.length < 3) {
-      return res.json({
-        predictions: null,
-        message: 'Insufficient department data for predictions (need 3+ entries).',
-        entryCount: entries.length,
-      });
+      return res.json({ predictions: null, message: 'Insufficient department data for predictions (need 3+ entries).', entryCount: entries.length });
     }
 
     const latestEntry = entries[0];
-
-    // Step 3: train a department-level model
-    const trainResult = await trainEntityModel(
-      'department',
-      req.user.departmentId.toString(),
-      entries
-    );
-
+    const trainResult = await trainEntityModel('department', String(entityId), entries);
     if (!trainResult.trained) {
       return res.json({ predictions: null, message: 'Model training failed.', trainResult });
     }
-
-    // Step 4: get predictions from the department model
-    const predictions = await predictEntityModel(
-      'department',
-      req.user.departmentId.toString(),
-      latestEntry
-    );
-
-    res.json({
-      predictions,
-      trainingMetrics: trainResult.metrics,
-      featureImportance: trainResult.featureImportance,
-      studentCount: studentIds.length,
-      entryCount: entries.length,
-    });
+    const predictions = await predictEntityModel('department', String(entityId), latestEntry);
+    res.json({ predictions, trainingMetrics: trainResult.metrics, featureImportance: trainResult.featureImportance, studentCount: studentIds.length, entryCount: entries.length });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.status || 500).json({ message: error.message });
   }
 });
 

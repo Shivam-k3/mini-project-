@@ -224,6 +224,9 @@ button, a, [role="button"], label, select, input[type="checkbox"], input[type="r
 .auth-form > label > span { display: block; margin: 0 0 .4rem .1rem; color: #334155; font-size: .84rem; font-weight: 600; }
 .auth-password-label { display: flex !important; align-items: center; justify-content: space-between; }
 .auth-password-label small { color: #217648; font-size: .7rem; font-weight: 600; }
+.auth-password-actions { display: inline-flex; align-items: center; gap: .8rem; }
+.auth-forgot-link { color: #2e9458; font-size: .72rem; font-weight: 700; transition: color .15s; }
+.auth-forgot-link:hover { color: #1f6f43; text-decoration: underline; }
 .auth-input-wrap { position: relative; display: flex; align-items: center; }
 .auth-input-wrap > svg { position: absolute; left: .9rem; color: #94a3b8; }
 .auth-input-wrap input {
@@ -250,6 +253,25 @@ button, a, [role="button"], label, select, input[type="checkbox"], input[type="r
 .auth-submit:disabled { cursor: not-allowed; opacity: .6; }
 
 .auth-spinner { width: 1.1rem; height: 1.1rem; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 999px; animation: spin .65s linear infinite; }
+
+.auth-loading { display: flex; min-height: 14rem; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: #64748b; font-size: .9rem; font-weight: 600; }
+.auth-loading .auth-spinner { width: 1.4rem; height: 1.4rem; border-width: 3px; border-color: rgba(46,148,88,.25); border-top-color: #2e9458; }
+
+.auth-success { margin-top: .25rem; border: 1px solid #d3ebe0; border-radius: .6rem; background: #f2faf6; padding: 1.1rem 1.2rem; }
+.auth-success-icon { display: inline-grid; width: 2rem; height: 2rem; place-items: center; margin-bottom: .6rem; border-radius: 999px; background: #2e9458; color: #fff; }
+.auth-success p { margin: 0; color: #334155; font-size: .9rem; font-weight: 600; }
+.auth-success-note { margin-top: .4rem !important; color: #64748b !important; font-size: .85rem !important; font-weight: 500 !important; line-height: 1.55; }
+
+.auth-alert { margin-top: .25rem; border: 1px solid #f0c98f; border-radius: .6rem; background: #fff8ef; padding: 1rem 1.15rem; }
+.auth-alert p { margin: 0; color: #7c5a24; font-size: .88rem; line-height: 1.55; }
+
+.auth-alt-actions { display: flex; justify-content: center; margin-top: 1.5rem; }
+.auth-alt-link { display: inline-flex; align-items: center; gap: .45rem; color: #475569; font-size: .85rem; font-weight: 600; transition: color .15s; }
+.auth-alt-link:hover { color: #217648; }
+
+.auth-block-links { display: grid; gap: .8rem; margin-top: 1.4rem; }
+.auth-submit-link { display: inline-flex; min-height: 2.9rem; align-items: center; justify-content: center; gap: .55rem; border-radius: .6rem; background: #0f172a; color: #fff; font-size: .9rem; font-weight: 600; padding: .7rem 1rem; transition: background-color .15s; }
+.auth-submit-link:hover { background: #217648; }
 
 .auth-sandbox { margin-top: 1.6rem; border-top: 1px solid #e2e8f0; padding-top: 1.1rem; }
 .auth-sandbox > p { margin: 0 0 .6rem; color: #64748b; font-size: .63rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
@@ -315,6 +337,19 @@ button, a, [role="button"], label, select, input[type="checkbox"], input[type="r
 .dark .auth-legal { color: #475569; }
 .dark .auth-legal a:hover { color: #82d2a0; }
 .dark .auth-mobile-brand { color: #82d2a0; }
+.dark .auth-forgot-link { color: #82d2a0; }
+.dark .auth-forgot-link:hover { color: #e2e8f0; }
+.dark .auth-loading { color: #94a3b8; }
+.dark .auth-loading .auth-spinner { border-color: rgba(130,210,160,.2); border-top-color: #82d2a0; }
+.dark .auth-success { border-color: #1f3a2f; background: rgba(46,148,88,.12); }
+.dark .auth-success p { color: #e2e8f0; }
+.dark .auth-success-note { color: #94a3b8; }
+.dark .auth-alert { border-color: #4a3a1f; background: rgba(240,161,26,.12); }
+.dark .auth-alert p { color: #f0c988; }
+.dark .auth-alt-link { color: #94a3b8; }
+.dark .auth-alt-link:hover { color: #82d2a0; }
+.dark .auth-submit-link { background: #16212e; color: #e2e8f0; }
+.dark .auth-submit-link:hover { background: #217648; }
 .dark .legal-page { background: #020817; color: #e2e8f0; }
 .dark .legal-document { background: #0b1526; border-color: #1e293b; }
 .dark .legal-brand { color: #f1f5f9; }
